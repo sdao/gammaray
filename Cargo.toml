@@ -1,0 +1,11 @@
+[package]
+name = "gammaray"
+version = "0.1.0"
+authors = ["steve"]
+
+[[bin]]
+name = "gammaray"
+
+[dependencies]
+num = "0.1"
+rand = "0.3"
