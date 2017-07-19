@@ -126,7 +126,7 @@ pub fn mitchell_filter2(x: f64, y: f64, width: f64) -> f64 {
  * @param gPdf probability according to the Pg distribution
  * @returns    the weight according to the power heuristic
  */
-pub fn powerHeuristic(nf: u32, f_pdf: f64, ng: u32, g_pdf: f64) -> f64{
+pub fn power_heuristic(nf: u32, f_pdf: f64, ng: u32, g_pdf: f64) -> f64{
     let f = (nf as f64) * f_pdf;
     let g = (ng as f64) * g_pdf;
 

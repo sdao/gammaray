@@ -6,9 +6,9 @@ use std::ops::{Add, Sub, Mul, Div, Neg};
 
 #[derive(Copy, Clone)]
 pub struct Vec3<T> where T: Signed + Copy {
-    x: T,
-    y: T,
-    z: T,
+    pub x: T,
+    pub y: T,
+    pub z: T,
 }
 
 impl<T> Vec3<T> where T: Signed + Copy {
@@ -56,36 +56,61 @@ impl<T> Display for Vec3<T> where T: Signed + Copy + Display {
 
 impl<T> Add for Vec3<T> where T: Signed + Copy {
     type Output = Vec3<T>;
-    fn add(self, _rhs: Vec3<T>) -> Vec3<T> {
-        Vec3 {x: self.x + _rhs.x, y: self.y + _rhs.y, z: self.z + _rhs.z}
+    fn add(mut self, _rhs: Vec3<T>) -> Vec3<T> {
+        self.x = self.x + _rhs.x;
+        self.y = self.y + _rhs.y;
+        self.z = self.z + _rhs.z;
+        self
     }
 }
 
 impl<T> Sub for Vec3<T> where T: Signed + Copy {
     type Output = Vec3<T>;
-    fn sub(self, _rhs: Vec3<T>) -> Vec3<T> {
-        Vec3 {x: self.x - _rhs.x, y: self.y - _rhs.y, z: self.z - _rhs.z}
+    fn sub(mut self, _rhs: Vec3<T>) -> Vec3<T> {
+        self.x = self.x - _rhs.x;
+        self.y = self.y - _rhs.y;
+        self.z = self.z - _rhs.z;
+        self
     }
 }
 
 impl<T> Mul<T> for Vec3<T> where T: Signed + Copy {
     type Output = Vec3<T>;
-    fn mul(self, _rhs: T) -> Vec3<T> {
-        Vec3 {x: self.x * _rhs, y: self.y * _rhs, z: self.z * _rhs}
+    fn mul(mut self, _rhs: T) -> Vec3<T> {
+        self.x = self.x - _rhs;
+        self.y = self.y - _rhs;
+        self.z = self.z - _rhs;
+        self
     }
+}
+
+impl Mul<Vec3<f64>> for f64 {
+    type Output = Vec3<f64>;
+    fn mul(self, _rhs: Vec3<f64>) -> Vec3<f64> { _rhs * self }
+}
+
+impl Mul<Vec3<i32>> for i32 {
+    type Output = Vec3<i32>;
+    fn mul(self, _rhs: Vec3<i32>) -> Vec3<i32> { _rhs * self }
 }
 
 impl<T> Div<T> for Vec3<T> where T: Signed + Copy {
     type Output = Vec3<T>;
-    fn div(self, _rhs: T) -> Vec3<T> {
-        Vec3 {x: self.x / _rhs, y: self.y / _rhs, z: self.z / _rhs}
+    fn div(mut self, _rhs: T) -> Vec3<T> {
+        self.x = self.x / _rhs;
+        self.y = self.y / _rhs;
+        self.z = self.z / _rhs;
+        self
     }
 }
 
 impl<T> Neg for Vec3<T> where T: Signed + Copy {
     type Output = Vec3<T>;
-    fn neg(self) -> Vec3<T> {
-        Vec3 {x: -self.x, y: -self.y, z: -self.z}
+    fn neg(mut self) -> Vec3<T> {
+        self.x = -self.x;
+        self.y = -self.y;
+        self.z = -self.z;
+        self
     }
 }
 
