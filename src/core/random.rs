@@ -10,48 +10,6 @@ use rand::distributions::range::Range;
 /** The number of steradians in a sphere (4 * Pi). */
 const STERADIANS_PER_SPHERE: f64 = std::f64::consts::PI * 4.0;
 
-pub struct RngHelper<R> where R: Rng {
-    rng: R,
-    unit_range: Range<f64>,
-    normal_dist: Normal
-}
-
-impl<R> RngHelper<R> where R: Rng {
-    pub fn from_rng(rng: R) -> RngHelper<R> {
-        Self {rng: rng, unit_range: Range::new(0.0, 1.0), normal_dist: Normal::new(0.0, 1.0)}
-    }
-
-    /**
-     * Samples a random Rand (e.g. this could be i32, u32, f64).
-     */
-    pub fn next<T>(&mut self) -> T where T: Rand { self.rng.gen::<T>() }
-
-    /**
-     * Samples a random float between 0 (inclusive) and 1 (exclusive).
-     */
-    pub fn next_unit_f64(&mut self) -> f64 {
-        self.unit_range.ind_sample(&mut self.rng)
-    }
-
-    /**
-     * Samples a normally-distributed float with mean 0 and standard deviation 1.
-     */
-    pub fn next_normal_f64(&mut self) -> f64 {
-        self.normal_dist.ind_sample(&mut self.rng)
-    }
-
-    pub fn next_f64(&mut self, min: f64, max: f64) -> f64 {
-        let range: Range<f64> = Range::new(min, max);
-        range.ind_sample(&mut self.rng)
-    }
-}
-
-impl RngHelper<ThreadRng> {
-    pub fn new() -> RngHelper<ThreadRng> {
-        Self::from_rng(rand::thread_rng())
-    }
-}
-
 /**
  * Samples a unit disk, ensuring that the samples are uniformally distributed
  * throughout the area of the disk.

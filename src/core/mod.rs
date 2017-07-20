@@ -20,8 +20,6 @@ pub use core::random::AreaSampleDisk;
 pub use core::random::CosineSampleHemisphere;
 pub use core::random::UniformSampleSphere;
 pub use core::random::UniformSampleCone;
-pub use core::random::RngHelper;
-pub type ThreadRngHelper = random::RngHelper<ThreadRng>;
 
 mod ray;
 pub use core::ray::Ray;
