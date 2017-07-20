@@ -1,5 +1,3 @@
-use rand::ThreadRng;
-
 mod camera;
 pub use core::camera::Camera;
 

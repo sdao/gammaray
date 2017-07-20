@@ -131,3 +131,11 @@ pub fn power_heuristic(nf: u32, f_pdf: f64, ng: u32, g_pdf: f64) -> f64{
 
     (f * f) / (f * f + g * g)
 }
+
+pub fn row_col(index: usize, width: usize) -> (usize, usize) {
+    (index / width, index % width)
+}
+
+pub fn index(row: usize, col: usize, width: usize) -> usize {
+    row * width + col
+}

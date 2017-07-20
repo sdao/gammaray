@@ -6,7 +6,7 @@ use core::vector;
 use std;
 use std::fmt;
 use std::fmt::Display;
-use std::ops::{Add, Sub, Mul, Div, Neg, Index, IndexMut};
+use std::ops::{Mul, Index, IndexMut};
 
 /** A 4x4 matrix in row-major order. */
 #[derive(Clone)]

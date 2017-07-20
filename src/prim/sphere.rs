@@ -5,19 +5,24 @@ use core::Mat;
 use core::Ray;
 
 pub struct Sphere {
-    pub xform: Mat,
-    pub radius: f64,
+    radius: f64,
+    xform: Mat,
+    xform_inv: Mat,
 }
 
 impl Sphere {
     pub fn new(xform: &Mat, radius: f64) -> Sphere {
-        Sphere {xform: xform.clone(), radius: radius}
+        Sphere {radius: radius, xform: xform.clone(), xform_inv: xform.inverted()}
     }
 }
 
 impl Prim for Sphere {
     fn local_to_world_xform(&self) -> &Mat {
         &self.xform
+    }
+
+    fn world_to_local_xform(&self) -> &Mat {
+        &self.xform_inv
     }
 
     fn intersect_local(&self, ray: &Ray) -> Option<Intersection> {

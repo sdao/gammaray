@@ -11,6 +11,7 @@ extern crate time;
 
 extern crate rayon;
 use rayon::prelude::*;
+use rayon::iter::ParallelIterator;
 
 pub fn main() {
     let c = core::Camera::default();
@@ -23,9 +24,8 @@ pub fn main() {
     let mut data = vec![false; num_pixels];
 
     let start = time::now();
-    (0..num_pixels).into_par_iter().map(|i| {
-        let col = i % width;
-        let row = i / width;
+    (0..num_pixels).into_par_iter().with_min_len(width).map(|i| {
+        let (row, col) = core::row_col(i, width);
 
         let i = core::lerp(-1.0, 1.0, (col as f64 / (width - 1) as f64));
         let j = core::lerp(-1.0, 1.0, (row as f64 / (height - 1) as f64));
@@ -38,7 +38,7 @@ pub fn main() {
     println!("Duration: {:?}", time::now() - start);
 
     let img = ImageBuffer::from_fn(width as u32, height as u32, |col, row| {
-        let pixel = (row as usize) * width + (col as usize);
+        let pixel = core::index(row as usize, col as usize, width);
         match data[pixel] {
             true => image::Rgba([255u8, 255u8, 255u8, 255u8]),
             false => image::Rgba([0u8, 0u8, 0u8, 255u8]),
