@@ -1,49 +1,49 @@
 use prim::Prim;
 use core;
 use core::Intersection;
-use core::Mat4f;
+use core::Mat;
 use core::Ray;
 
 pub struct Sphere {
-    pub xform: Mat4f,
+    pub xform: Mat,
     pub radius: f64,
-    pub inverted: bool,
 }
 
 impl Sphere {
-    pub fn new(xform: &Mat4f, radius: f64) -> Sphere {
-        Sphere {xform: xform.clone(), radius: radius, inverted: false}
+    pub fn new(xform: &Mat, radius: f64) -> Sphere {
+        Sphere {xform: xform.clone(), radius: radius}
     }
 }
 
 impl Prim for Sphere {
-    fn local_to_world_xform(&self) -> &Mat4f {
+    fn local_to_world_xform(&self) -> &Mat {
         &self.xform
     }
 
     fn intersect_local(&self, ray: &Ray) -> Option<Intersection> {
-        let diff = &ray.origin;
+        let origin = &ray.origin;
         let l = &ray.direction;
 
         // See Wikipedia:
         // <http://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection>
         let a = l.dot(l);
-        let b = l.dot(diff);
-        let c = diff.dot(diff) - (self.radius * self.radius);
+        let b = l.dot(origin);
+        let c = origin.dot(origin) - (self.radius * self.radius);
 
         let discriminant = (b * b) - (a * c);
 
         if discriminant > 0.0 {
+            let inside = c < 0.0;
             let sqrt_discriminant = discriminant.sqrt();
             // Quadratic has at most 2 results.
-            let resPos = -b + sqrt_discriminant;
-            let resNeg = -b - sqrt_discriminant;
+            let res_pos = -b + sqrt_discriminant;
+            let res_neg = -b - sqrt_discriminant;
 
             // Neg before pos because we want to return closest isect first.
-            if core::is_positive(resNeg) {
-                let pt = ray.at(resNeg);
-                let normal = if self.inverted {
-                    -pt
+            if core::is_positive(res_neg) {
+                let pt = ray.at(res_neg);
+                let normal = if inside {
+                    -&pt
                 }
                 else {
                     pt
@@ -51,10 +51,10 @@ impl Prim for Sphere {
 
                 return Some(Intersection {});
             }
-            else if core::is_positive(resPos) {
-                let pt = ray.at(resPos);
-                let normal = if self.inverted {
-                    -pt
+            else if core::is_positive(res_pos) {
+                let pt = ray.at(res_pos);
+                let normal = if inside {
+                    -&pt
                 }
                 else {
                     pt

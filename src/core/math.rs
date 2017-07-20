@@ -1,7 +1,6 @@
-use num::traits::{Num, Float};
-use std::cmp::PartialOrd;
+use std;
 
-pub fn clamp<T>(x: T, a: T, b: T) -> T where T: Num + PartialOrd + Copy {
+pub fn clamp(x: f64, a: f64, b: f64) -> f64 {
     if x < a {
         a
     }
@@ -13,8 +12,8 @@ pub fn clamp<T>(x: T, a: T, b: T) -> T where T: Num + PartialOrd + Copy {
     }
 }
 
-pub fn clamp_unit<T>(x: T) -> T where T: Num + PartialOrd + Copy {
-    clamp(x, T::zero(), T::one())
+pub fn clamp_unit(x: f64) -> f64 {
+    clamp(x, 0.0, 1.0)
 }
 
 /**
@@ -22,7 +21,7 @@ pub fn clamp_unit<T>(x: T) -> T where T: Num + PartialOrd + Copy {
  * where a = 1, y is returned. If a < 0 or a > 1, this function will
  * extrapolate.
  */
-pub fn lerp<T>(x: T, y: T, a: T) -> T where T: Num + Copy {
+pub fn lerp(x: f64, y: f64, a: f64) -> f64 {
     x + a * (y - x)
 }
 
@@ -30,22 +29,22 @@ pub fn lerp<T>(x: T, y: T, a: T) -> T where T: Num + Copy {
  * Linearly interpolates between x and y. Where a <= 0, x is returned, and
  * where a >= 1, y is returned. No extrapolation will occur.
  */
-pub fn clamped_lerp<T>(x: T, y: T, a: T) -> T where T: Num + PartialOrd + Copy {
-    lerp(x, y, clamp(a, T::zero(), T::one()))
+pub fn clamped_lerp(x: f64, y: f64, a: f64) -> f64 {
+    lerp(x, y, clamp(a, 0.0, 1.0))
 }
 
 /**
  * Determines whether a number is zero, within a small epsilon.
  */
-pub fn is_nearly_zero<T>(x: T) -> bool where T: Float {
-    T::abs(x) < T::epsilon()
+pub fn is_nearly_zero(x: f64) -> bool {
+    f64::abs(x) < std::f64::EPSILON
 }
 
 /**
  * Determines whether a number is positive, within a small epsilon.
  */
-pub fn is_positive<T>(x: T) -> bool where T: Float {
-    x > T::epsilon()
+pub fn is_positive(x: f64) -> bool {
+    x > std::f64::EPSILON
 }
 
 /**

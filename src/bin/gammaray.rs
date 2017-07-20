@@ -48,6 +48,8 @@ extern crate image;
 use image::ImageBuffer;
 
 extern crate time;
+extern crate rayon;
+use rayon::prelude::*;
 
 fn gfx_load_texture<F, R>(factory: &mut F) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
     where F: gfx::Factory<R>,
@@ -55,24 +57,27 @@ fn gfx_load_texture<F, R>(factory: &mut F) -> gfx::handle::ShaderResourceView<R,
 {
     let c = core::Camera::default();
     println!("Aspect: {}", c.aspect_ratio());
-    println!("(-0.22, -0.16, -1.0).normalized {}", core::Vec3f::new(-0.22, -0.16, -1.0).normalized());
+    println!("(-0.22, -0.16, -1.0).normalized {}", core::Vec::new(-0.22, -0.16, -1.0).normalized());
     println!("Window: {:?}", c.window_max());
     println!("Ray -1 -1: {}", c.compute_ray(-1.0, -1.0));
     println!("Ray 1 -1: {}", c.compute_ray(1.0, -1.0));
 
-    let mut xform_s = core::Mat4f::identity();
-    xform_s.set_translate(&core::Vec3f::new(0.0, 0.0, -1000.0));
+    let xform_s = core::Mat::translation(&core::Vec::new(0.0, 0.0, -1000.0));
     let s = prim::Sphere::new(&xform_s, 5.0);
 
     let starts = time::now();
+    let mut xx = [0; 512];
     for x in 0..512 {
+        xx[x] = x;
+    }
+    let yy = xx.par_iter().for_each(|&x| {
         for y in 0..512 {
             let ii = core::lerp(-1.0, 1.0, (x as f64 / 511.0));
             let jj = core::lerp(-1.0, 1.0, (y as f64 / 511.0));
             let r = c.compute_ray(ii, jj);
-            let z = s.intersect_world(&r);
+            s.intersect_world(&r);
         }
-    }
+    });
     let ends = time::now();
     println!("Duration B {:?}", ends - starts);
 

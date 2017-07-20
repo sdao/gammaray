@@ -1,125 +1,67 @@
 use core::math;
-use num::traits::{Float, Signed};
 use std::fmt;
 use std::fmt::Display;
 use std::ops::{Add, Sub, Mul, Div, Neg};
 
-#[derive(Copy, Clone)]
-pub struct Vec3<T> where T: Signed + Copy {
-    pub x: T,
-    pub y: T,
-    pub z: T,
+#[derive(Clone)]
+pub struct Vec {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
-impl<T> Vec3<T> where T: Signed + Copy {
-    pub fn new(x: T, y: T, z: T) -> Vec3<T> {
-        Vec3 {x: x, y: y, z: z}
+impl Vec {
+    pub fn new(x: f64, y: f64, z: f64) -> Vec {
+        Vec {x: x, y: y, z: z}
     }
 
-    pub fn zero() -> Vec3<T> {
-        Self::new(T::zero(), T::zero(), T::zero())
+    pub fn zero() -> Vec {
+        Self::new(0.0, 0.0, 0.0)
     }
 
-    pub fn one() -> Vec3<T> {
-        Self::new(T::one(), T::one(), T::one())
+    pub fn one() -> Vec {
+        Self::new(1.0, 1.0, 1.0)
     }
 
-    pub fn comp_mult(&self, other: &Vec3<T>) -> Vec3<T> {
+    pub fn x_axis() -> Vec {
+        Self::new(1.0, 0.0, 0.0)
+    }
+
+    pub fn y_axis() -> Vec {
+        Self::new(0.0, 1.0, 0.0)
+    }
+
+    pub fn z_axis() -> Vec {
+        Self::new(0.0, 0.0, 1.0)
+    }
+
+    pub fn comp_mult(&self, other: &Vec) -> Vec {
         Self::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }
 
-    pub fn comp_div(&self, other: &Vec3<T>) -> Vec3<T> {
+    pub fn comp_div(&self, other: &Vec) -> Vec {
         Self::new(self.x / other.x, self.y / other.y, self.z / other.z)
     }
 
-    pub fn cross(&self, other: &Vec3<T>) -> Vec3<T> {
+    pub fn cross(&self, other: &Vec) -> Vec {
         Self::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
             self.x * other.y - self.y * other.x)
     }
 
-    pub fn dot(&self, other: &Vec3<T>) -> T {
+    pub fn dot(&self, other: &Vec) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
     pub fn is_exactly_zero(&self) -> bool {
-        self.x == T::zero() && self.y == T::zero() && self.z == T::zero()
+        self.x == 0.0 && self.y == 0.0 && self.z == 0.0
     }
-}
-
-impl<T> Display for Vec3<T> where T: Signed + Copy + Display {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.x, self.y, self.z)
-    }
-}
-
-impl<T> Add for Vec3<T> where T: Signed + Copy {
-    type Output = Vec3<T>;
-    fn add(mut self, _rhs: Vec3<T>) -> Vec3<T> {
-        self.x = self.x + _rhs.x;
-        self.y = self.y + _rhs.y;
-        self.z = self.z + _rhs.z;
-        self
-    }
-}
-
-impl<T> Sub for Vec3<T> where T: Signed + Copy {
-    type Output = Vec3<T>;
-    fn sub(mut self, _rhs: Vec3<T>) -> Vec3<T> {
-        self.x = self.x - _rhs.x;
-        self.y = self.y - _rhs.y;
-        self.z = self.z - _rhs.z;
-        self
-    }
-}
-
-impl<T> Mul<T> for Vec3<T> where T: Signed + Copy {
-    type Output = Vec3<T>;
-    fn mul(mut self, _rhs: T) -> Vec3<T> {
-        self.x = self.x - _rhs;
-        self.y = self.y - _rhs;
-        self.z = self.z - _rhs;
-        self
-    }
-}
-
-impl Mul<Vec3<f64>> for f64 {
-    type Output = Vec3<f64>;
-    fn mul(self, _rhs: Vec3<f64>) -> Vec3<f64> { _rhs * self }
-}
-
-impl Mul<Vec3<i32>> for i32 {
-    type Output = Vec3<i32>;
-    fn mul(self, _rhs: Vec3<i32>) -> Vec3<i32> { _rhs * self }
-}
-
-impl<T> Div<T> for Vec3<T> where T: Signed + Copy {
-    type Output = Vec3<T>;
-    fn div(mut self, _rhs: T) -> Vec3<T> {
-        self.x = self.x / _rhs;
-        self.y = self.y / _rhs;
-        self.z = self.z / _rhs;
-        self
-    }
-}
-
-impl<T> Neg for Vec3<T> where T: Signed + Copy {
-    type Output = Vec3<T>;
-    fn neg(mut self) -> Vec3<T> {
-        self.x = -self.x;
-        self.y = -self.y;
-        self.z = -self.z;
-        self
-    }
-}
-
-impl<T> Vec3<T> where T: Float + Signed + Copy {
-    pub fn magnitude(&self) -> T {
-        T::sqrt(self.dot(self))
+    pub fn magnitude(&self) -> f64 {
+        f64::sqrt(self.dot(self))
     }
 
-    pub fn normalized(&self) -> Vec3<T> {
+    pub fn normalized(&self) -> Vec {
         let length = self.magnitude();
         Self::new(self.x / length, self.y / length, self.z / length)
     }
@@ -136,16 +78,16 @@ impl<T> Vec3<T> where T: Float + Signed + Copy {
      * and the other two orthogonal vectors will be generated from it.
      * Taken from page 63 of Pharr & Humphreys' Physically-Based Rendering.
      */
-    pub fn coord_system(&self) -> (Vec3<T>, Vec3<T>) {
-        if Signed::abs(&self.x) > Signed::abs(&self.y) {
-            let inv_len = T::one() / T::sqrt(self.x * self.x + self.z * self.z);
-            let v2 = Self::new(-self.z * inv_len, T::zero(), self.x * inv_len);
+    pub fn coord_system(&self) -> (Vec, Vec) {
+        if &self.x.abs() > &self.y.abs() {
+            let inv_len = 1.0 / f64::sqrt(self.x * self.x + self.z * self.z);
+            let v2 = Self::new(-self.z * inv_len, 0.0, self.x * inv_len);
             let v3 = self.cross(&v2);
             (v2, v3)
         }
         else {
-            let inv_len = T::one() / T::sqrt(self.y * self.y + self.z * self.z);
-            let v2 = Self::new(T::zero(), self.z * inv_len, -self.y * inv_len);
+            let inv_len = 1.0 / f64::sqrt(self.y * self.y + self.z * self.z);
+            let v2 = Self::new(0.0, self.z * inv_len, -self.y * inv_len);
             let v3 = self.cross(&v2);
             (v2, v3)
         }
@@ -157,20 +99,19 @@ impl<T> Vec3<T> where T: Float + Signed + Copy {
      * tangent, y is the weight of the binormal, and z is the weight of the
      * normal.
      */
-    pub fn world_to_local(&self, tangent: &Vec3<T>, binormal: &Vec3<T>, normal: &Vec3<T>)
-        -> Vec3<T>
+    pub fn world_to_local(&self, tangent: &Vec, binormal: &Vec, normal: &Vec)
+        -> Vec
     {
         Self::new(self.dot(&tangent), self.dot(&binormal), self.dot(&normal))
     }
-
 
     /**
      * Converts a local-space vector back to world-space. The local-space vector
      * should be (x, y, z), where x is the weight of the tangent, y is the weight
      * of the binormal, and z is the weight of the normal.
      */
-    pub fn local_to_world(&self, tangent: &Vec3<T>, binormal: &Vec3<T>, normal: &Vec3<T>)
-        -> Vec3<T>
+    pub fn local_to_world(&self, tangent: &Vec, binormal: &Vec, normal: &Vec)
+        -> Vec
     {
         Self::new(
             tangent.x * self.x + binormal.x * self.y + normal.x * self.z,
@@ -183,41 +124,41 @@ impl<T> Vec3<T> where T: Float + Signed + Copy {
      * Returns Cos[Theta] of a vector where Theta is the polar angle of the vector
      * in spherical coordinates.
      */
-    pub fn cos_theta(&self) -> T { self.z }
+    pub fn cos_theta(&self) -> f64 { self.z }
 
     /**
      * Returns Abs[Cos[Theta]] of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn abs_cos_theta(&self) -> T { Signed::abs(&self.z) }
+    pub fn abs_cos_theta(&self) -> f64 { self.z.abs() }
 
     /**
      * Returns Sin[Theta]^2 of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn sin_theta2(&self) -> T {
-        T::max(T::zero(), T::one() - self.cos_theta() * self.cos_theta())
+    pub fn sin_theta2(&self) -> f64 {
+        f64::max(0.0, 1.0 - self.cos_theta() * self.cos_theta())
     }
 
     /**
      * Returns Sin[Theta] of a vector where Theta is the polar angle of the vector
      * in spherical coordinates.
      */
-    pub fn sin_theta(&self) -> T {
-        T::sqrt(self.sin_theta2())
+    pub fn sin_theta(&self) -> f64 {
+        f64::sqrt(self.sin_theta2())
     }
 
     /**
      * Returns Cos[Phi] of a vector where Phi is the azimuthal angle of the vector
      * in spherical coordinates.
      */
-    pub fn cos_phi(&self) -> T {
+    pub fn cos_phi(&self) -> f64 {
         let sin_t = self.sin_theta();
-        if sin_t == T::zero() {
-            T::one()
+        if sin_t == 0.0 {
+            1.0
         }
         else {
-            math::clamp(self.x / sin_t, -T::one(), T::one())
+            math::clamp(self.x / sin_t, -1.0, 1.0)
         }
     }
 
@@ -225,13 +166,13 @@ impl<T> Vec3<T> where T: Float + Signed + Copy {
      * Returns Sin[Phi] of a vector where Phi is the azimuthal angle of the vector
      * in spherical coordinates.
      */
-    pub fn sin_phi(&self) -> T {
+    pub fn sin_phi(&self) -> f64 {
         let sin_t = self.sin_theta();
-        if sin_t == T::zero() {
-            T::zero()
+        if sin_t == 0.0 {
+            0.0
         }
         else {
-            math::clamp(self.y / sin_t, -T::one(), T::one())
+            math::clamp(self.y / sin_t, -1.0, 1.0)
         }
     }
 
@@ -239,12 +180,10 @@ impl<T> Vec3<T> where T: Float + Signed + Copy {
      * Determines if two vectors in the same local coordinate space are in the
      * same hemisphere.
      */
-    pub fn is_local_same_hemisphere(&self, v: &Vec3<T>) -> bool {
-        self.z * v.z >= T::zero()
+    pub fn is_local_same_hemisphere(&self, v: &Vec) -> bool {
+        self.z * v.z >= 0.0
     }
-}
 
-impl Vec3<f64> {
     /**
      * Luminance of an RGB color stored in a vec.
      */
@@ -260,8 +199,12 @@ impl Vec3<f64> {
      * @param N the normal at the surface over which to reflect
      * @returns the outgoing reflection vector
      */
-    pub fn reflect(&self, n: &Vec3<f64>) -> Vec3<f64> {
-        *self - (*n * (2.0 * n.dot(self)))
+    pub fn reflect(&self, n: &Vec) -> Vec {
+        let k = 2.0 * n.dot(self);
+        Self::new(
+            self.x - n.x * k,
+            self.y - n.y * k,
+            self.z - n.z * k)
     }
 
     /**
@@ -275,13 +218,63 @@ impl Vec3<f64> {
      * @param eta the ratio of the incoming IOR over the transmitting IOR
      * @returns   the outgoing refraction vector
      */
-    pub fn refract(&self, n: &Vec3<f64>, eta: f64) -> Vec3<f64> {
+    pub fn refract(&self, n: &Vec, eta: f64) -> Vec {
       let d = n.dot(self);
       let k = 1.0 - eta * eta * (1.0 - d * d);
       if k < 0.0 {
           Self::zero()
       } else {
-          (*self * eta) - *n * ((eta * d + k.sqrt()))
+          let k = eta * d + k.sqrt();
+          Self::new(
+              self.x * eta - n.x * k,
+              self.y * eta - n.y * k,
+              self.z * eta - n.z * k)
       }
+    }
+}
+
+impl Display for Vec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
+}
+
+impl<'a, 'b> Add<&'b Vec> for &'a Vec {
+    type Output = Vec;
+    fn add(self, _rhs: &'b Vec) -> Vec {
+        Vec::new(self.x + _rhs.x, self.y + _rhs.y, self.z + _rhs.z)
+    }
+}
+
+impl<'a, 'b> Sub<&'b Vec> for &'a Vec {
+    type Output = Vec;
+    fn sub(self, _rhs: &'b Vec) -> Vec {
+        Vec::new(self.x - _rhs.x, self.y - _rhs.y, self.z - _rhs.z)
+    }
+}
+
+impl<'a> Mul<f64> for &'a Vec {
+    type Output = Vec;
+    fn mul(self, _rhs: f64) -> Vec {
+        Vec::new(self.x * _rhs, self.y * _rhs, self.z * _rhs)
+    }
+}
+
+impl<'b> Mul<&'b Vec> for f64 {
+    type Output = Vec;
+    fn mul(self, _rhs: &'b Vec) -> Vec { _rhs * self }
+}
+
+impl<'a> Div<f64> for &'a Vec {
+    type Output = Vec;
+    fn div(self, _rhs: f64) -> Vec {
+        Vec::new(self.x / _rhs, self.y / _rhs, self.z / _rhs)
+    }
+}
+
+impl<'a> Neg for &'a Vec {
+    type Output = Vec;
+    fn neg(self) -> Vec {
+        Vec::new(-self.x, -self.y, -self.z)
     }
 }

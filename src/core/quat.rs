@@ -1,15 +1,15 @@
 use core::vector;
 use std::ops::{Div, Mul, Neg};
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Quat {
     pub real: f64,
-    pub imaginary: vector::Vec3<f64>,
+    pub imaginary: vector::Vec,
 }
 
 impl Quat {
     pub fn identity() -> Quat {
-        Quat {real: 1.0, imaginary: vector::Vec3::<f64>::zero()}
+        Quat {real: 1.0, imaginary: vector::Vec::zero()}
     }
     pub fn length_squared(&self) -> f64 {
         self.real * self.real + self.imaginary.dot(&self.imaginary)
@@ -21,7 +21,7 @@ impl Neg for Quat {
     fn neg(mut self) -> Quat {
         let lsq = self.length_squared();
         self.real = self.real / lsq;
-        self.imaginary = -self.imaginary / lsq;
+        self.imaginary = &(-&self.imaginary) / lsq;
         self
     }
 }
@@ -30,7 +30,7 @@ impl Mul for Quat {
     type Output = Quat;
     fn mul(mut self, _rhs: Quat) -> Quat {
         let r: f64;
-        let i: vector::Vec3<f64>;
+        let i: vector::Vec;
         {
             let r1 = self.real;
             let r2 = _rhs.real;
@@ -39,7 +39,7 @@ impl Mul for Quat {
             let i2 = &_rhs.imaginary;
 
             r = r1 * r2 - i1.dot(i2);
-            i = vector::Vec3::<f64>::new(
+            i = vector::Vec::new(
                 r1 * i2.x + r2 * i1.x + (i1.y * i2.z - i1.z * i2.y),
     	        r1 * i2.y + r2 * i1.y + (i1.z * i2.x - i1.x * i2.z),
     	        r1 * i2.z + r2 * i1.z + (i1.x * i2.y - i1.y * i2.x));
@@ -55,7 +55,7 @@ impl Mul<f64> for Quat {
     type Output = Quat;
     fn mul(mut self, _rhs: f64) -> Quat {
         self.real = self.real * _rhs;
-        self.imaginary = self.imaginary * _rhs;
+        self.imaginary = &self.imaginary * _rhs;
         self
     }
 }
@@ -64,7 +64,7 @@ impl Div<f64> for Quat {
     type Output = Quat;
     fn div(mut self, _rhs: f64) -> Quat {
         self.real = self.real / _rhs;
-        self.imaginary = self.imaginary / _rhs;
+        self.imaginary = &self.imaginary / _rhs;
         self
     }
 }

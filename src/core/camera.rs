@@ -23,29 +23,38 @@ pub struct Camera {
      * The height of the projector aperture. See the documentation for horizontal_aperture
      * for the same unit restrictions. */
     pub vertical_aperture: f64,
-    /** Position of camera. */
-    pub position: vector::Vec3<f64>,
-    /**
-     * Rotation of the camera. By default, the camera is Z-up, aiming towards the negative X-axis.
-     * Any rotation is a rotation from this default position.
-     */
-    pub rotation: quat::Quat,
     /**
      * The f-number or focal ratio. A larger f-stop gives more depth of field, bringing more
      * objects into focus. A smaller f-stop will narrow the focus around the focal length.
      */
     pub f_stop: f64,
+    pub xform: matrix::Mat,
 }
 
 impl Camera {
     pub fn default() -> Camera {
+        Self::new(5.0, HORIZONTAL_APERTURE_35MM, VERTICAL_APERTURE_35MM, 8.0,
+                &quat::Quat::identity(), &vector::Vec::zero())
+    }
+
+    pub fn new(
+        focal_length: f64,
+        horizontal_aperture: f64,
+        vertical_aperture: f64,
+        f_stop: f64,
+        rotate: &quat::Quat,
+        translate: &vector::Vec) -> Camera
+    {
+        let translate_mat = matrix::Mat::translation(&translate);
+        let rotate_mat = matrix::Mat::rotation(&rotate);
+        let combined = &translate_mat * &rotate_mat;
+
         Camera {
-            focal_length: 5.0,
-            horizontal_aperture: HORIZONTAL_APERTURE_35MM,
-            vertical_aperture: VERTICAL_APERTURE_35MM,
-            position: vector::Vec3::<f64>::zero(),
-            rotation: quat::Quat::identity(),
-            f_stop: 8.0,
+            focal_length: focal_length,
+            horizontal_aperture: horizontal_aperture,
+            vertical_aperture: vertical_aperture,
+            f_stop: f_stop,
+            xform: combined,
         }
     }
 
@@ -67,12 +76,6 @@ impl Camera {
          self.vertical_aperture / (self.focal_length * 2.0))
     }
 
-    pub fn view_matrix(&self) -> matrix::Mat4<f64> {
-        let mut m = matrix::Mat4::<f64>::zero();
-        m.set_look_at(self.position, self.rotation);
-        m
-    }
-
     /**
      * Computes the ray starting at the viewpoint and extending through the given window position.
      * The window position is defined in normalized coordinates in [-1, 1] where (0, 0) is the
@@ -80,13 +83,12 @@ impl Camera {
      */
     pub fn compute_ray(&self, x: f64, y: f64) -> ray::Ray {
         let window_max = self.window_max();
-        let origin = vector::Vec3::<f64>::zero();
-        let direction = vector::Vec3::<f64>::new(window_max.0 * x, window_max.1 * y, -1.0)
+        let origin = vector::Vec::zero();
+        let direction = vector::Vec::new(window_max.0 * x, window_max.1 * y, -1.0)
                 .normalized();
 
-        let view_inverse = self.view_matrix().inverted();
-        let world_origin = view_inverse.transform(origin);
-        let world_direction = view_inverse.transform_dir(direction);
+        let world_origin = self.xform.transform(&origin);
+        let world_direction = self.xform.transform_dir(&direction);
 
         ray::Ray::new(world_origin, world_direction)
     }

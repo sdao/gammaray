@@ -133,28 +133,28 @@ impl CosineSampleHemisphere {
      * hemisphere using a cosine-weighted distribution. (It does not matter
      * whether the hemisphere is on the positive or negative Z-axis.)
      */
-    pub fn pdf(direction: &vector::Vec3<f64>) -> f64 {
+    pub fn pdf(direction: &vector::Vec) -> f64 {
         direction.abs_cos_theta() * std::f64::consts::FRAC_1_PI
     }
 }
 
-impl Sample<vector::Vec3<f64>> for CosineSampleHemisphere {
-    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl Sample<vector::Vec> for CosineSampleHemisphere {
+    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec where R: Rng {
         self.ind_sample(rng)
     }
 }
 
-impl IndependentSample<vector::Vec3<f64>> for CosineSampleHemisphere {
-    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl IndependentSample<vector::Vec> for CosineSampleHemisphere {
+    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         const AREA_SAMPLE_DISK: AreaSampleDisk = AreaSampleDisk {};
         let (x, y) = AREA_SAMPLE_DISK.ind_sample(rng);
         let z = f64::max(0.0, 1.0 - x * x - y * y);
 
         if self.flipped {
-            vector::Vec3::<f64>::new(x, y, -1.0 * z)
+            vector::Vec::new(x, y, -1.0 * z)
         }
         else {
-            vector::Vec3::<f64>::new(x, y, z)
+            vector::Vec::new(x, y, z)
         }
     }
 }
@@ -176,21 +176,21 @@ impl UniformSampleSphere {
     }
 }
 
-impl Sample<vector::Vec3<f64>> for UniformSampleSphere {
-    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl Sample<vector::Vec> for UniformSampleSphere {
+    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec where R: Rng {
         self.ind_sample(rng)
     }
 }
 
-impl IndependentSample<vector::Vec3<f64>> for UniformSampleSphere {
-    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl IndependentSample<vector::Vec> for UniformSampleSphere {
+    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         // See MathWorld <http://mathworld.wolfram.com/SpherePointPicking.html>.
         let StandardNormal(x) = rng.gen();
         let StandardNormal(y) = rng.gen();
         let StandardNormal(z) = rng.gen();
         let a = 1.0 / (x * x + y * y + z * z).sqrt();
 
-        vector::Vec3::<f64>::new(a * x, a * y, a * z)
+        vector::Vec::new(a * x, a * y, a * z)
     }
 }
 
@@ -242,7 +242,7 @@ impl UniformSampleCone {
      * @param direction the direction of the sampled vector
      * @returns         the probability that the angle was sampled
      */
-    pub fn pdf(half_angle: f64, direction: &vector::Vec3<f64>) -> f64{
+    pub fn pdf(half_angle: f64, direction: &vector::Vec) -> f64{
       let cos_half_angle = half_angle.cos();
       let solid_angle = std::f64::consts::PI * 2.0 * (1.0 - cos_half_angle);
       if direction.cos_theta() > cos_half_angle {
@@ -255,14 +255,14 @@ impl UniformSampleCone {
     }
 }
 
-impl Sample<vector::Vec3<f64>> for UniformSampleCone {
-    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl Sample<vector::Vec> for UniformSampleCone {
+    fn sample<R>(&mut self, rng: &mut R) -> vector::Vec where R: Rng {
         self.ind_sample(rng)
     }
 }
 
-impl IndependentSample<vector::Vec3<f64>> for UniformSampleCone {
-    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec3<f64> where R: Rng {
+impl IndependentSample<vector::Vec> for UniformSampleCone {
+    fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         let h = self.half_angle.cos();
         let z = Range::new(h, 1.0).ind_sample(rng);
         let t = Range::new(0.0, std::f64::consts::PI * 2.0).ind_sample(rng);
@@ -270,6 +270,6 @@ impl IndependentSample<vector::Vec3<f64>> for UniformSampleCone {
         let x = r * t.cos();
         let y = r * t.sin();
 
-        vector::Vec3::<f64>::new(x, y, z)
+        vector::Vec::new(x, y, z)
     }
 }

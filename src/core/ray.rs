@@ -3,17 +3,17 @@ use std::fmt;
 use std::fmt::Display;
 
 pub struct Ray {
-    pub origin: vector::Vec3<f64>,
-    pub direction: vector::Vec3<f64>,
+    pub origin: vector::Vec,
+    pub direction: vector::Vec,
 }
 
 impl Ray {
-    pub fn new(origin: vector::Vec3<f64>, direction: vector::Vec3<f64>) -> Ray {
+    pub fn new(origin: vector::Vec, direction: vector::Vec) -> Ray {
         Ray {origin: origin, direction: direction}
     }
 
-    pub fn at(&self, k: f64) -> vector::Vec3<f64> {
-        self.origin + k * self.direction
+    pub fn at(&self, k: f64) -> vector::Vec {
+        &self.origin + &(k * &self.direction)
     }
 }
 

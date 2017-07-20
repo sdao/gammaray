@@ -10,8 +10,7 @@ mod math;
 pub use core::math::*;
 
 mod matrix;
-pub use core::matrix::Mat4;
-pub type Mat4f = matrix::Mat4<f64>;
+pub use core::matrix::Mat;
 
 mod quat;
 pub use core::quat::Quat;
@@ -28,6 +27,4 @@ mod ray;
 pub use core::ray::Ray;
 
 mod vector;
-pub use core::vector::Vec3;
-pub type Vec3f = vector::Vec3<f64>;
-pub type Vec3i = vector::Vec3<i32>;
+pub use core::vector::Vec;

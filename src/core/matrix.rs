@@ -3,7 +3,6 @@ use core::quat;
 use core::ray;
 use core::vector;
 
-use num::{Signed};
 use std;
 use std::fmt;
 use std::fmt::Display;
@@ -11,90 +10,119 @@ use std::ops::{Add, Sub, Mul, Div, Neg, Index, IndexMut};
 
 /** A 4x4 matrix in row-major order. */
 #[derive(Clone)]
-pub struct Mat4<T> where T: Signed + Copy + Display {
-    storage: [[T; 4]; 4],
+pub struct Mat {
+    storage: [[f64; 4]; 4],
 }
 
-impl<T> Mat4<T> where T: Signed + Copy + Display {
-    pub fn new(data: [[T; 4]; 4]) -> Mat4<T> {
+impl Mat {
+    pub fn new(data: [[f64; 4]; 4]) -> Mat {
         Self {storage: data}
     }
 
-    pub fn zero() -> Mat4<T> {
-        Self::new([[T::zero(); 4]; 4])
+    pub fn zero() -> Mat {
+        Self::new([[0.0; 4]; 4])
     }
 
-    pub fn identity() -> Mat4<T> {
+    pub fn identity() -> Mat {
+        Self::diagonal(1.0)
+    }
+
+    pub fn diagonal(k: f64) -> Mat {
         let mut output = Self::zero();
-        output.set_diagonal(T::one());
+        output[0][0] = k;
+        output[0][1] = 0.0;
+        output[0][2] = 0.0;
+        output[0][2] = 0.0;
+        output[1][0] = 0.0;
+        output[1][1] = k;
+        output[1][2] = 0.0;
+        output[1][3] = 0.0;
+        output[2][0] = 0.0;
+        output[2][1] = 0.0;
+        output[2][2] = k;
+        output[2][3] = 0.0;
+        output[3][0] = 0.0;
+        output[3][1] = 0.0;
+        output[3][2] = 0.0;
+        output[3][3] = k;
+
         output
     }
 
-    pub fn set_diagonal(&mut self, k: T) -> &mut Self {
-        self[0][0] = k;
-        self[0][1] = T::zero();
-        self[0][2] = T::zero();
-        self[0][2] = T::zero();
-        self[1][0] = T::zero();
-        self[1][1] = k;
-        self[1][2] = T::zero();
-        self[1][3] = T::zero();
-        self[2][0] = T::zero();
-        self[2][1] = T::zero();
-        self[2][2] = k;
-        self[2][3] = T::zero();
-        self[3][0] = T::zero();
-        self[3][1] = T::zero();
-        self[3][2] = T::zero();
-        self[3][3] = k;
+    pub fn scale(k: f64) -> Mat {
+        let mut output = Self::zero();
+        output[0][0] = k;
+        output[0][1] = 0.0;
+        output[0][2] = 0.0;
+        output[0][2] = 0.0;
+        output[1][0] = 0.0;
+        output[1][1] = k;
+        output[1][2] = 0.0;
+        output[1][3] = 0.0;
+        output[2][0] = 0.0;
+        output[2][1] = 0.0;
+        output[2][2] = k;
+        output[2][3] = 0.0;
+        output[3][0] = 0.0;
+        output[3][1] = 0.0;
+        output[3][2] = 0.0;
+        output[3][3] = 1.0;
 
-        self
+        output
     }
 
-    pub fn set_scale(&mut self, k: T) -> &mut Self {
-        self[0][0] = k;
-        self[0][1] = T::zero();
-        self[0][2] = T::zero();
-        self[0][2] = T::zero();
-        self[1][0] = T::zero();
-        self[1][1] = k;
-        self[1][2] = T::zero();
-        self[1][3] = T::zero();
-        self[2][0] = T::zero();
-        self[2][1] = T::zero();
-        self[2][2] = k;
-        self[2][3] = T::zero();
-        self[3][0] = T::zero();
-        self[3][1] = T::zero();
-        self[3][2] = T::zero();
-        self[3][3] = T::one();
+    pub fn translation(translate: &vector::Vec) -> Mat {
+        let mut output = Self::zero();
+        output[0][0] = 1.0;
+        output[0][1] = 0.0;
+        output[0][2] = 0.0;
+        output[0][2] = 0.0;
+        output[1][0] = 0.0;
+        output[1][1] = 1.0;
+        output[1][2] = 0.0;
+        output[1][3] = 0.0;
+        output[2][0] = 0.0;
+        output[2][1] = 0.0;
+        output[2][2] = 1.0;
+        output[2][3] = 0.0;
+        output[3][0] = translate.x;
+        output[3][1] = translate.y;
+        output[3][2] = translate.z;
+        output[3][3] = 1.0;
 
-        self
+        output
     }
 
-    pub fn set_translate(&mut self, translate: &vector::Vec3<T>) -> &mut Self {
-        self[0][0] = T::one();
-        self[0][1] = T::zero();
-        self[0][2] = T::zero();
-        self[0][2] = T::zero();
-        self[1][0] = T::zero();
-        self[1][1] = T::one();
-        self[1][2] = T::zero();
-        self[1][3] = T::zero();
-        self[2][0] = T::zero();
-        self[2][1] = T::zero();
-        self[2][2] = T::one();
-        self[2][3] = T::zero();
-        self[3][0] = translate.x;
-        self[3][1] = translate.y;
-        self[3][2] = translate.z;
-        self[3][3] = T::one();
+    pub fn rotation(rotate: &quat::Quat) -> Mat {
+        let r = &rotate.real;
+        let i = &rotate.imaginary;
 
-        self
+        let mut output = Self::zero();
+        output[0][0] = 1.0 - 2.0 * (i.y * i.y + i.z * i.z);
+        output[0][1] =       2.0 * (i.x * i.y + i.z *   r);
+        output[0][2] =       2.0 * (i.z * i.x - i.y *   r);
+        output[0][3] = 0.0;
+
+        output[1][0] =       2.0 * (i.x * i.y - i.z *   r);
+        output[1][1] = 1.0 - 2.0 * (i.z * i.z + i.x * i.x);
+        output[1][2] =       2.0 * (i.y * i.z + i.x *   r);
+        output[1][3] = 0.0;
+
+        output[2][0] =       2.0 * (i.z * i.x + i.y *   r);
+        output[2][1] =       2.0 * (i.y * i.z - i.x *   r);
+        output[2][2] = 1.0 - 2.0 * (i.y * i.y + i.x * i.x);
+        output[2][3] = 0.0;
+
+        output[3][0] = 0.0;
+        output[3][1] = 0.0;
+        output[3][2] = 0.0;
+        output[3][3] = 1.0;
+
+        output
     }
 
-    pub fn transposed(&self) -> Mat4<T> {
-        let mut output = Mat4::zero();
+    pub fn transposed(&self) -> Mat {
+        let mut output = Mat::zero();
         for row in 0..4 {
             for col in 0..4 {
                 output[row][col] = output[col][row];
@@ -104,7 +132,7 @@ impl<T> Mat4<T> where T: Signed + Copy + Display {
     }
 
     fn get_determinant3(&self, r1: usize, r2: usize, r3: usize, c1: usize, c2: usize, c3: usize)
-        -> T
+        -> f64
     {
         (  self[r1][c1] * self[r2][c2] * self[r3][c3]
 	     + self[r1][c2] * self[r2][c3] * self[r3][c1]
@@ -114,75 +142,36 @@ impl<T> Mat4<T> where T: Signed + Copy + Display {
 	     - self[r1][c3] * self[r2][c2] * self[r3][c1])
     }
 
-    pub fn get_determinant(&self) -> T {
+    pub fn get_determinant(&self) -> f64 {
         (- self[0][3] * self.get_determinant3(1, 2, 3, 0, 1, 2)
          + self[1][3] * self.get_determinant3(0, 2, 3, 0, 1, 2)
          - self[2][3] * self.get_determinant3(0, 1, 3, 0, 1, 2)
          + self[3][3] * self.get_determinant3(0, 1, 2, 0, 1, 2))
     }
 
-    pub fn transform(&self, v: vector::Vec3<T>) -> vector::Vec3<T> {
+    pub fn transform(&self, v: &vector::Vec) -> vector::Vec {
         let x = v.x * self[0][0] + v.y * self[1][0] + v.z * self[2][0] + self[3][0];
         let y = v.x * self[0][1] + v.y * self[1][1] + v.z * self[2][1] + self[3][1];
         let z = v.x * self[0][2] + v.y * self[1][2] + v.z * self[2][2] + self[3][2];
         let w = v.x * self[0][3] + v.y * self[1][3] + v.z * self[2][3] + self[3][3];
-        vector::Vec3::<T>::new(x / w, y / w, z / w)
+        vector::Vec::new(x / w, y / w, z / w)
     }
 
-    pub fn transform_dir(&self, v: vector::Vec3<T>) -> vector::Vec3<T> {
-        vector::Vec3::<T>::new(
+    pub fn transform_dir(&self, v: &vector::Vec) -> vector::Vec {
+        vector::Vec::new(
             v.x * self[0][0] + v.y * self[1][0] + v.z * self[2][0],
             v.x * self[0][1] + v.y * self[1][1] + v.z * self[2][1],
             v.x * self[0][2] + v.y * self[1][2] + v.z * self[2][2])
     }
-}
 
-impl Mat4<f64> {
-    pub fn set_rotate(&mut self, rotate: &quat::Quat) -> &mut Self {
-        let r = &rotate.real;
-        let i = &rotate.imaginary;
-
-        self[0][0] = 1.0 - 2.0 * (i.y * i.y + i.z * i.z);
-        self[0][1] =       2.0 * (i.x * i.y + i.z *   r);
-        self[0][2] =       2.0 * (i.z * i.x - i.y *   r);
-        self[0][3] = 0.0;
-
-        self[1][0] =       2.0 * (i.x * i.y - i.z *   r);
-        self[1][1] = 1.0 - 2.0 * (i.z * i.z + i.x * i.x);
-        self[1][2] =       2.0 * (i.y * i.z + i.x *   r);
-        self[1][3] = 0.0;
-
-        self[2][0] =       2.0 * (i.z * i.x + i.y *   r);
-        self[2][1] =       2.0 * (i.y * i.z - i.x *   r);
-        self[2][2] = 1.0 - 2.0 * (i.y * i.y + i.x * i.x);
-        self[2][3] = 0.0;
-
-        self[3][0] = 0.0;
-        self[3][1] = 0.0;
-        self[3][2] = 0.0;
-        self[3][3] = 1.0;
-
-        self
+    pub fn transform_ray(&self, r: &ray::Ray) -> ray::Ray {
+        ray::Ray {
+            origin: self.transform(&r.origin),
+            direction: self.transform_dir(&r.direction)
+        }
     }
 
-    pub fn set_look_at(&mut self, eye: vector::Vec3<f64>, orientation: quat::Quat)
-        -> &mut Self
-    {
-        let neg_eye = -eye;
-        let mut translate = Self::zero();
-        translate.set_translate(&neg_eye);
-
-        let neg_orientation = -orientation;
-        let mut rotate = Self::zero();
-        rotate.set_rotate(&neg_orientation);
-
-        let combined = translate * rotate;
-        self.storage = combined.storage;
-
-        self
-    }
-
-    pub fn inverted(&self) -> Mat4<f64> {
+    pub fn inverted(&self) -> Mat {
         let mut x00: f64;
         let mut x01: f64;
         let x02: f64;
@@ -291,10 +280,10 @@ impl Mat4<f64> {
         // Compute 4x4 determinant & its reciprocal.
         let det = (x30 * z30) + (x20 * z20) + (x10 * z10) + (x00 * z00);
 
-        let mut output = Mat4::zero();
         if math::is_positive(det) {
             let rcp = 1.0 / det;
             // Multiply all 3x3 cofactors by reciprocal & transpose.
+            let mut output = Mat::zero();
             output[0][0] = z00 * rcp;
             output[0][1] = z10 * rcp;
             output[1][0] = z01 * rcp;
@@ -311,23 +300,16 @@ impl Mat4<f64> {
             output[2][3] = z32 * rcp;
             output[3][2] = z23 * rcp;
             output[3][3] = z33 * rcp;
+
+            output
         }
         else {
-    	    output.set_scale(std::f64::MAX);
-        }
-
-        output
-    }
-
-    pub fn transform_ray(&self, r: &ray::Ray) -> ray::Ray {
-        ray::Ray {
-            origin: self.transform(r.origin),
-            direction: self.transform_dir(r.direction)
+    	    Self::scale(std::f64::MAX)
         }
     }
 }
 
-impl<T> Display for Mat4<T> where T: Signed + Copy + Display {
+impl Display for Mat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut output = String::new();
         output.push_str("(");
@@ -349,166 +331,104 @@ impl<T> Display for Mat4<T> where T: Signed + Copy + Display {
     }
 }
 
-impl<T> Add for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn add(self, _rhs: Mat4<T>) -> Mat4<T> {
-        let mut output = self.storage;
-        for row in 0..4 {
-            for col in 0..4 {
-                output[row][col] = output[row][col] + _rhs[row][col];
-            }
-        }
-        Mat4 {storage: output}
+impl<'a, 'b> Mul<&'b Mat> for &'a Mat {
+    type Output = Mat;
+    fn mul(self, _rhs: &'b Mat) -> Mat {
+        let mut output = Mat::zero();
+        output[0][0] = self[0][0] * _rhs[0][0] +
+                       self[0][1] * _rhs[1][0] +
+                       self[0][2] * _rhs[2][0] +
+                       self[0][3] * _rhs[3][0];
+
+        output[0][1] = self[0][0] * _rhs[0][1] +
+                       self[0][1] * _rhs[1][1] +
+                       self[0][2] * _rhs[2][1] +
+                       self[0][3] * _rhs[3][1];
+
+        output[0][2] = self[0][0] * _rhs[0][2] +
+                       self[0][1] * _rhs[1][2] +
+                       self[0][2] * _rhs[2][2] +
+                       self[0][3] * _rhs[3][2];
+
+        output[0][3] = self[0][0] * _rhs[0][3] +
+                       self[0][1] * _rhs[1][3] +
+                       self[0][2] * _rhs[2][3] +
+                       self[0][3] * _rhs[3][3];
+
+        output[1][0] = self[1][0] * _rhs[0][0] +
+                       self[1][1] * _rhs[1][0] +
+                       self[1][2] * _rhs[2][0] +
+                       self[1][3] * _rhs[3][0];
+
+        output[1][1] = self[1][0] * _rhs[0][1] +
+                       self[1][1] * _rhs[1][1] +
+                       self[1][2] * _rhs[2][1] +
+                       self[1][3] * _rhs[3][1];
+
+        output[1][2] = self[1][0] * _rhs[0][2] +
+                       self[1][1] * _rhs[1][2] +
+                       self[1][2] * _rhs[2][2] +
+                       self[1][3] * _rhs[3][2];
+
+        output[1][3] = self[1][0] * _rhs[0][3] +
+                       self[1][1] * _rhs[1][3] +
+                       self[1][2] * _rhs[2][3] +
+                       self[1][3] * _rhs[3][3];
+
+        output[2][0] = self[2][0] * _rhs[0][0] +
+                       self[2][1] * _rhs[1][0] +
+                       self[2][2] * _rhs[2][0] +
+                       self[2][3] * _rhs[3][0];
+
+        output[2][1] = self[2][0] * _rhs[0][1] +
+                       self[2][1] * _rhs[1][1] +
+                       self[2][2] * _rhs[2][1] +
+                       self[2][3] * _rhs[3][1];
+
+        output[2][2] = self[2][0] * _rhs[0][2] +
+                       self[2][1] * _rhs[1][2] +
+                       self[2][2] * _rhs[2][2] +
+                       self[2][3] * _rhs[3][2];
+
+        output[2][3] = self[2][0] * _rhs[0][3] +
+                       self[2][1] * _rhs[1][3] +
+                       self[2][2] * _rhs[2][3] +
+                       self[2][3] * _rhs[3][3];
+
+        output[3][0] = self[3][0] * _rhs[0][0] +
+                       self[3][1] * _rhs[1][0] +
+                       self[3][2] * _rhs[2][0] +
+                       self[3][3] * _rhs[3][0];
+
+        output[3][1] = self[3][0] * _rhs[0][1] +
+                       self[3][1] * _rhs[1][1] +
+                       self[3][2] * _rhs[2][1] +
+                       self[3][3] * _rhs[3][1];
+
+        output[3][2] = self[3][0] * _rhs[0][2] +
+                       self[3][1] * _rhs[1][2] +
+                       self[3][2] * _rhs[2][2] +
+                       self[3][3] * _rhs[3][2];
+
+        output[3][3] = self[3][0] * _rhs[0][3] +
+                       self[3][1] * _rhs[1][3] +
+                       self[3][2] * _rhs[2][3] +
+                       self[3][3] * _rhs[3][3];
+
+        output
     }
 }
 
-impl<T> Sub for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn sub(self, _rhs: Mat4<T>) -> Mat4<T> {
-        let mut output = self.storage;
-        for row in 0..4 {
-            for col in 0..4 {
-                output[row][col] = output[row][col] - _rhs[row][col];
-            }
-        }
-        Mat4 {storage: output}
-    }
-}
+impl Index<usize> for Mat {
+    type Output = [f64; 4];
 
-impl<T> Mul for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn mul(mut self, _rhs: Mat4<T>) -> Mat4<T> {
-        let tmp = self.storage;
-        self[0][0] = tmp[0][0] * _rhs[0][0] +
-                     tmp[0][1] * _rhs[1][0] +
-                     tmp[0][2] * _rhs[2][0] +
-                     tmp[0][3] * _rhs[3][0];
-
-        self[0][1] = tmp[0][0] * _rhs[0][1] +
-                     tmp[0][1] * _rhs[1][1] +
-                     tmp[0][2] * _rhs[2][1] +
-                     tmp[0][3] * _rhs[3][1];
-
-        self[0][2] = tmp[0][0] * _rhs[0][2] +
-                     tmp[0][1] * _rhs[1][2] +
-                     tmp[0][2] * _rhs[2][2] +
-                     tmp[0][3] * _rhs[3][2];
-
-        self[0][3] = tmp[0][0] * _rhs[0][3] +
-                     tmp[0][1] * _rhs[1][3] +
-                     tmp[0][2] * _rhs[2][3] +
-                     tmp[0][3] * _rhs[3][3];
-
-        self[1][0] = tmp[1][0] * _rhs[0][0] +
-                     tmp[1][1] * _rhs[1][0] +
-                     tmp[1][2] * _rhs[2][0] +
-                     tmp[1][3] * _rhs[3][0];
-
-        self[1][1] = tmp[1][0] * _rhs[0][1] +
-                     tmp[1][1] * _rhs[1][1] +
-                     tmp[1][2] * _rhs[2][1] +
-                     tmp[1][3] * _rhs[3][1];
-
-        self[1][2] = tmp[1][0] * _rhs[0][2] +
-                     tmp[1][1] * _rhs[1][2] +
-                     tmp[1][2] * _rhs[2][2] +
-                     tmp[1][3] * _rhs[3][2];
-
-        self[1][3] = tmp[1][0] * _rhs[0][3] +
-                     tmp[1][1] * _rhs[1][3] +
-                     tmp[1][2] * _rhs[2][3] +
-                     tmp[1][3] * _rhs[3][3];
-
-        self[2][0] = tmp[2][0] * _rhs[0][0] +
-                     tmp[2][1] * _rhs[1][0] +
-                     tmp[2][2] * _rhs[2][0] +
-                     tmp[2][3] * _rhs[3][0];
-
-        self[2][1] = tmp[2][0] * _rhs[0][1] +
-                     tmp[2][1] * _rhs[1][1] +
-                     tmp[2][2] * _rhs[2][1] +
-                     tmp[2][3] * _rhs[3][1];
-
-        self[2][2] = tmp[2][0] * _rhs[0][2] +
-                     tmp[2][1] * _rhs[1][2] +
-                     tmp[2][2] * _rhs[2][2] +
-                     tmp[2][3] * _rhs[3][2];
-
-        self[2][3] = tmp[2][0] * _rhs[0][3] +
-                     tmp[2][1] * _rhs[1][3] +
-                     tmp[2][2] * _rhs[2][3] +
-                     tmp[2][3] * _rhs[3][3];
-
-        self[3][0] = tmp[3][0] * _rhs[0][0] +
-                     tmp[3][1] * _rhs[1][0] +
-                     tmp[3][2] * _rhs[2][0] +
-                     tmp[3][3] * _rhs[3][0];
-
-        self[3][1] = tmp[3][0] * _rhs[0][1] +
-                     tmp[3][1] * _rhs[1][1] +
-                     tmp[3][2] * _rhs[2][1] +
-                     tmp[3][3] * _rhs[3][1];
-
-        self[3][2] = tmp[3][0] * _rhs[0][2] +
-                     tmp[3][1] * _rhs[1][2] +
-                     tmp[3][2] * _rhs[2][2] +
-                     tmp[3][3] * _rhs[3][2];
-
-        self[3][3] = tmp[3][0] * _rhs[0][3] +
-                     tmp[3][1] * _rhs[1][3] +
-                     tmp[3][2] * _rhs[2][3] +
-                     tmp[3][3] * _rhs[3][3];
-
-        self
-    }
-}
-
-impl<T> Mul<T> for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn mul(mut self, _rhs: T) -> Mat4<T> {
-        for row in 0..4 {
-            for col in 0..4 {
-                self.storage[row][col] = self.storage[row][col] * _rhs;
-            }
-        }
-        self
-    }
-}
-
-impl<T> Div<T> for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn div(mut self, _rhs: T) -> Mat4<T> {
-        for row in 0..4 {
-            for col in 0..4 {
-                self.storage[row][col] = self.storage[row][col] / _rhs;
-            }
-        }
-        self
-    }
-}
-
-impl<T> Neg for Mat4<T> where T: Signed + Copy + Display {
-    type Output = Mat4<T>;
-    fn neg(mut self) -> Mat4<T> {
-        for row in 0..4 {
-            for col in 0..4 {
-                self.storage[row][col] = -self.storage[row][col];
-            }
-        }
-        self
-    }
-}
-
-impl<T> Index<usize> for Mat4<T> where T: Signed + Copy + Display {
-    type Output = [T; 4];
-
-    fn index(&self, index: usize) -> &[T; 4] {
+    fn index(&self, index: usize) -> &[f64; 4] {
         &self.storage[index]
     }
 }
 
-impl<T> IndexMut<usize> for Mat4<T> where T: Signed + Copy + Display {
-    fn index_mut(&mut self, index: usize) -> &mut [T; 4] {
+impl IndexMut<usize> for Mat {
+    fn index_mut(&mut self, index: usize) -> &mut [f64; 4] {
         &mut self.storage[index]
     }
 }
