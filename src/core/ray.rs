@@ -2,6 +2,7 @@ use core::vector;
 use std::fmt;
 use std::fmt::Display;
 
+#[derive(Clone)]
 pub struct Ray {
     pub origin: vector::Vec,
     pub direction: vector::Vec,
@@ -10,6 +11,10 @@ pub struct Ray {
 impl Ray {
     pub fn new(origin: vector::Vec, direction: vector::Vec) -> Ray {
         Ray {origin: origin, direction: direction}
+    }
+
+    pub fn zero() -> Ray {
+        Ray {origin: vector::Vec::zero(), direction: vector::Vec::zero()}
     }
 
     pub fn at(&self, k: f64) -> vector::Vec {

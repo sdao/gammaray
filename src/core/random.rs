@@ -1,10 +1,9 @@
 use core::vector;
 
 use std;
-use rand;
-use rand::{Rand, Rng, ThreadRng};
+use rand::Rng;
 use rand::distributions::{IndependentSample, Sample};
-use rand::distributions::normal::{Normal, StandardNormal};
+use rand::distributions::normal::StandardNormal;
 use rand::distributions::range::Range;
 
 /** The number of steradians in a sphere (4 * Pi). */

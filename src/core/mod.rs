@@ -1,9 +1,6 @@
 mod camera;
 pub use core::camera::Camera;
 
-mod intersection;
-pub use core::intersection::Intersection;
-
 mod math;
 pub use core::math::*;
 

@@ -1,22 +1,31 @@
 use prim::Prim;
 use core;
-use core::Intersection;
 use core::Mat;
 use core::Ray;
+use core::Vec;
 
 pub struct Sphere {
+    color: Vec,
     radius: f64,
     xform: Mat,
     xform_inv: Mat,
 }
 
 impl Sphere {
-    pub fn new(xform: &Mat, radius: f64) -> Sphere {
-        Sphere {radius: radius, xform: xform.clone(), xform_inv: xform.inverted()}
+    pub fn new(display_color: &Vec, xform: &Mat, radius: f64) -> Sphere {
+        Sphere {
+            color: display_color.clone(),
+            radius: radius, xform: xform.clone(),
+            xform_inv: xform.inverted()
+        }
     }
 }
 
 impl Prim for Sphere {
+    fn display_color(&self) -> &Vec {
+        &self.color
+    }
+
     fn local_to_world_xform(&self) -> &Mat {
         &self.xform
     }
@@ -25,7 +34,7 @@ impl Prim for Sphere {
         &self.xform_inv
     }
 
-    fn intersect_local(&self, ray: &Ray) -> Option<Intersection> {
+    fn intersect_local(&self, ray: &Ray) -> (f64, Vec) {
         let origin = &ray.origin;
         let l = &ray.direction;
 
@@ -54,7 +63,7 @@ impl Prim for Sphere {
                     pt
                 }.normalized();
 
-                return Some(Intersection {});
+                return (res_neg, normal)
             }
             else if core::is_positive(res_pos) {
                 let pt = ray.at(res_pos);
@@ -65,11 +74,11 @@ impl Prim for Sphere {
                     pt
                 }.normalized();
 
-                return Some(Intersection {});
+                return (res_neg, normal)
             }
         }
 
         // Either no isect was found or it was behind us.
-        return None;
+        return (0.0, Vec::zero())
     }
 }

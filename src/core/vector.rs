@@ -15,25 +15,16 @@ impl Vec {
         Vec {x: x, y: y, z: z}
     }
 
-    pub fn zero() -> Vec {
-        Self::new(0.0, 0.0, 0.0)
-    }
+    pub fn zero() -> Vec { Self::new(0.0, 0.0, 0.0) }
+    pub fn one() -> Vec { Self::new(1.0, 1.0, 1.0) }
 
-    pub fn one() -> Vec {
-        Self::new(1.0, 1.0, 1.0)
-    }
+    pub fn x_axis() -> Vec { Self::new(1.0, 0.0, 0.0) }
+    pub fn y_axis() -> Vec { Self::new(0.0, 1.0, 0.0) }
+    pub fn z_axis() -> Vec { Self::new(0.0, 0.0, 1.0) }
 
-    pub fn x_axis() -> Vec {
-        Self::new(1.0, 0.0, 0.0)
-    }
-
-    pub fn y_axis() -> Vec {
-        Self::new(0.0, 1.0, 0.0)
-    }
-
-    pub fn z_axis() -> Vec {
-        Self::new(0.0, 0.0, 1.0)
-    }
+    pub fn red() -> Vec { Self::x_axis() }
+    pub fn green() -> Vec{ Self::y_axis() }
+    pub fn blue() -> Vec { Self::z_axis() }
 
     pub fn comp_mult(&self, other: &Vec) -> Vec {
         Self::new(self.x * other.x, self.y * other.y, self.z * other.z)
@@ -230,6 +221,15 @@ impl Vec {
               self.y * eta - n.y * k,
               self.z * eta - n.z * k)
       }
+    }
+
+    pub fn to_rgba8(&self) -> [u8; 4] {
+        [
+            (self.x * 255.99999) as u8,
+            (self.y * 255.99999) as u8,
+            (self.z * 255.99999) as u8,
+            255u8
+        ]
     }
 }
 
