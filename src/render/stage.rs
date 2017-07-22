@@ -1,12 +1,12 @@
+use render::film;
 use render::kernel;
-use render::sample;
-use core;
+
 use core::Camera;
 use core::Ray;
 use core::Vec;
-use prim::Prim;
-use rayon::prelude::*;
+
 use std;
+use prim::Prim;
 
 enum Intersection<'a> {
     Hit {
@@ -36,7 +36,7 @@ impl Stage {
         Stage {prims: prims}
     }
 
-    fn _intersect_world(&self, ray: &Ray) -> Intersection {
+    fn intersect_world(&self, ray: &Ray) -> Intersection {
         let mut closest_dist = std::f64::MAX;
         let mut closest: Intersection = Intersection::no_hit();
         for prim in &self.prims {
@@ -49,11 +49,11 @@ impl Stage {
         closest
     }
 
-    fn _trace(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
+    fn trace_single_ray(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
         let mut color: Vec = Vec::one();
         let mut current_ray: Ray = initial_ray.clone();
         while !current_ray.direction.is_exactly_zero() {
-            let intersection = self._intersect_world(&current_ray);
+            let intersection = self.intersect_world(&current_ray);
             match intersection {
                 Intersection::Hit {dist, normal, prim} => {
                     let pt = current_ray.at(dist);
@@ -74,24 +74,12 @@ impl Stage {
 
     pub fn trace(&self,
         camera: &Camera,
-        width: usize,
-        height: usize,
         kernel: &(kernel::Kernel + Sync),
-        samples: &mut std::vec::Vec<sample::Sample>)
+        film: &mut film::Film)
     {
-        assert!(samples.len() == width * height);
-        let last_col = (width - 1) as f64;
-        let last_row = (height - 1) as f64;
-
-        samples.par_iter_mut().with_min_len(width).enumerate().for_each(|(i, sample)| {
-            let (row, col) = core::row_col(i, width);
-
-            let x = core::lerp(-1.0, 1.0, (col as f64 / last_col));
-            let y = core::lerp(-1.0, 1.0, (row as f64 / last_row));
-            let ray = camera.compute_ray(x, y);
-            let color = self._trace(&ray, kernel);
-            sample.accum = &sample.accum + &color;
-            sample.num_samples += 1;
+        film.add_samples(&|u, v| {
+            let ray = camera.compute_ray(u, v);
+            self.trace_single_ray(&ray, kernel)
         });
     }
 }

@@ -81,10 +81,10 @@ impl Camera {
      * The window position is defined in normalized coordinates in [-1, 1] where (0, 0) is the
      * center, (-1, 1) is the lower-left, and (1, 1) is the upper-right.
      */
-    pub fn compute_ray(&self, x: f64, y: f64) -> ray::Ray {
+    pub fn compute_ray(&self, s: f64, t: f64) -> ray::Ray {
         let window_max = self.window_max();
         let origin = vector::Vec::zero();
-        let direction = vector::Vec::new(window_max.0 * x, window_max.1 * y, -1.0)
+        let direction = vector::Vec::new(window_max.0 * s, window_max.1 * t, -1.0)
                 .normalized();
 
         let world_origin = self.xform.transform(&origin);

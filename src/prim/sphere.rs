@@ -1,18 +1,16 @@
-use prim::Prim;
+use prim;
+
 use core;
-use core::Mat;
-use core::Ray;
-use core::Vec;
 
 pub struct Sphere {
-    color: Vec,
+    color: core::Vec,
     radius: f64,
-    xform: Mat,
-    xform_inv: Mat,
+    xform: core::Mat,
+    xform_inv: core::Mat,
 }
 
 impl Sphere {
-    pub fn new(display_color: &Vec, xform: &Mat, radius: f64) -> Sphere {
+    pub fn new(display_color: &core::Vec, xform: &core::Mat, radius: f64) -> Sphere {
         Sphere {
             color: display_color.clone(),
             radius: radius, xform: xform.clone(),
@@ -21,20 +19,20 @@ impl Sphere {
     }
 }
 
-impl Prim for Sphere {
-    fn display_color(&self) -> &Vec {
+impl prim::Prim for Sphere {
+    fn display_color(&self) -> &core::Vec {
         &self.color
     }
 
-    fn local_to_world_xform(&self) -> &Mat {
+    fn local_to_world_xform(&self) -> &core::Mat {
         &self.xform
     }
 
-    fn world_to_local_xform(&self) -> &Mat {
+    fn world_to_local_xform(&self) -> &core::Mat {
         &self.xform_inv
     }
 
-    fn intersect_local(&self, ray: &Ray) -> (f64, Vec) {
+    fn intersect_local(&self, ray: &core::Ray) -> (f64, core::Vec) {
         let origin = &ray.origin;
         let l = &ray.direction;
 
@@ -79,6 +77,6 @@ impl Prim for Sphere {
         }
 
         // Either no isect was found or it was behind us.
-        return (0.0, Vec::zero())
+        return (0.0, core::Vec::zero())
     }
 }

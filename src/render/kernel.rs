@@ -1,13 +1,14 @@
-use core::Vec;
-use prim::Prim;
+use core;
+
+use prim;
 
 pub struct KernelResult {
-    pub color: Vec,
-    pub direction: Vec,
+    pub color: core::Vec,
+    pub direction: core::Vec,
 }
 
 pub trait Kernel {
-    fn bounce(&self, dist: f64, normal: &Vec, prim: &Box<Prim + Sync>) -> KernelResult;
+    fn bounce(&self, dist: f64, normal: &core::Vec, prim: &Box<prim::Prim + Sync>) -> KernelResult;
 }
 
 pub struct DisplayColorKernel {
@@ -20,7 +21,7 @@ impl DisplayColorKernel {
 }
 
 impl Kernel for DisplayColorKernel {
-    fn bounce(&self, _: f64, _: &Vec, prim: &Box<Prim + Sync>) -> KernelResult {
-        KernelResult {color: prim.display_color().clone(), direction: Vec::zero()}
+    fn bounce(&self, _: f64, _: &core::Vec, prim: &Box<prim::Prim + Sync>) -> KernelResult {
+        KernelResult {color: prim.display_color().clone(), direction: core::Vec::zero()}
     }
 }

@@ -16,7 +16,8 @@ gfx_defines! {
     }
 
     constant Transform {
-        window_frame: [f32; 4] = "u_WindowFrame",
+        window_size: [f32; 2] = "u_WindowSize",
+        image_size: [f32; 2] = "u_ImageSize",
     }
 
     pipeline pipe {
@@ -90,27 +91,11 @@ pub fn image_preview_window(image_data: &[&[u8]], width: u32, height: u32) {
             None => (0, 0),
             Some((x, y)) => (x, y)
         };
-        let (out_width, out_height) = match window.get_outer_size() {
-            None => (0, 0),
-            Some((x, y)) => (x, y)
-        };
-        let left_right_frame = out_width - in_width;
-        let top_bottom_frame = out_height - in_height;
-
-        let left = left_right_frame / 2;
-        let right = left_right_frame - left;
-        let bottom = left; // Assume that left = right = bottom for window frame.
-        let top = top_bottom_frame - bottom;
-
         let transform = Transform {
-            window_frame: [
-                (left as f32) / (out_width as f32),
-                (top as f32) / (out_height as f32),
-                (right as f32) / (out_width as f32),
-                (bottom as f32) / (out_height as f32)]
+            window_size: [in_width as f32, in_height as f32],
+            image_size: [width as f32, height as f32],
         };
-        encoder.update_buffer(&data.transform, &[transform], 0)
-                .expect("Couldn't update window frame size.");
+        encoder.update_buffer(&data.transform, &[transform], 0).unwrap();
 
         encoder.clear(&data.out, BLACK);
         encoder.draw(&slice, &pso, &data);

@@ -27,18 +27,18 @@ pub fn main() {
 
     let height: usize = 512;
     let width = (height as f64 * c.aspect_ratio()) as usize;
-    let num_pixels = width * height;
-
-    let mut data = vec![render::Sample::zero(); num_pixels];
+    println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
+    let mut film = render::Film::new(width, height);
 
     let start = time::now();
-    stage.trace(&c, width, height, &kernel, &mut data);
+    stage.trace(&c, &kernel, &mut film);
     println!("Duration: {:?}", time::now() - start);
 
     let img = ImageBuffer::from_fn(width as u32, height as u32, |col, row| {
         let pixel = core::index(row as usize, col as usize, width);
-        image::Rgba(data[pixel].accum.to_rgba8())
+        image::Rgba(film.pixels[pixel].accum.to_rgba8())
     });
 
+    img.save(&std::path::Path::new("out.png")).unwrap();
     ui::image_preview_window(&[&img], width as u32, height as u32);
 }

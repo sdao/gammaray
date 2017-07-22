@@ -1,4 +1,5 @@
 use core::vector;
+
 use std::ops::{Div, Mul, Neg};
 
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 use std;
 
-pub fn clamp(x: f64, a: f64, b: f64) -> f64 {
+pub fn clamp<T>(x: T, a: T, b: T) -> T where T: PartialOrd {
     if x < a {
         a
     }
