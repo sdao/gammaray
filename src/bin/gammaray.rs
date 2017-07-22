@@ -17,7 +17,7 @@ pub fn main() {
         &core::Mat::translation(&core::Vec::new(0.0, 0.0, -100.0)),
         5.0);
     let s2 = prim::Sphere::new(
-        &core::Vec::green(),
+        &core::Vec::one(),
         &core::Mat::translation(&core::Vec::new(15.0, 0.0, -100.0)),
         5.0);
 
