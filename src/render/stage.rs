@@ -5,8 +5,11 @@ use core::Camera;
 use core::Ray;
 use core::Vec;
 
-use std;
 use prim::Prim;
+
+use std;
+use rand;
+use rand::{Rng, SeedableRng};
 
 enum Intersection<'a> {
     Hit {
@@ -50,30 +53,39 @@ impl Stage {
     }
 
     fn trace_single_ray(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
+        let mut thread_rng = rand::thread_rng();
+        let mut rng = rand::XorShiftRng::from_seed([
+                thread_rng.next_u32(),
+                thread_rng.next_u32(),
+                thread_rng.next_u32(),
+                thread_rng.next_u32()]);
+
         let mut depth = 0usize;
-        let mut color: Vec = Vec::one();
-        let mut lume: Vec = Vec::zero();
+        let mut throughput: Vec = Vec::one();
+        let mut light: Vec = Vec::zero();
         let mut current_ray: Ray = initial_ray.clone();
         while !current_ray.direction.is_exactly_zero() {
             let intersection = self.intersect_world(&current_ray);
             match intersection {
                 Intersection::Hit {dist, normal, prim} => {
-                    let kernel_result = kernel.bounce(depth, &current_ray, &color, &normal, &prim);
-                    lume = &lume + &color.comp_mult(&kernel_result.illum);
-                    color = color.comp_mult(&kernel_result.life);
+                    let kernel_result = kernel.bounce(
+                            depth, &current_ray.direction, &normal, &prim, &mut rng);
+                    light = &light + &throughput.comp_mult(&kernel_result.light);
+                    throughput = throughput.comp_mult(&kernel_result.throughput);
                     current_ray = Ray::new(
                             &current_ray.at(dist) + &(&kernel_result.direction * 1e-6),
                             kernel_result.direction);
                 },
                 Intersection::NoHit => {
-                    color = Vec::zero();
+                    throughput = Vec::zero();
                     current_ray = Ray::zero();
                 }
             }
 
             depth += 1;
         }
-        lume
+
+        light
     }
 
     pub fn trace(&self,

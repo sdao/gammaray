@@ -6,6 +6,9 @@ authors = ["steve"]
 [[bin]]
 name = "gammaray"
 
+[profile.dev]
+opt-level = 3
+
 [dependencies]
 rand = "0.3"
 image = "0.14"

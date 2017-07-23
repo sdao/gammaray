@@ -32,7 +32,7 @@ pub fn main() {
     let mut film = render::Film::new(width, height);
 
     let start = time::now();
-    for _ in 0..10 {
+    for _ in 0..100 {
         stage.trace(&c, &kernel, &mut film);
     }
     println!("Duration: {:?}", time::now() - start);

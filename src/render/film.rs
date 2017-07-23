@@ -81,7 +81,7 @@ impl Film {
         let last_col = (self.width - 1) as f64;
         let last_row = (self.height - 1) as f64;
 
-        self.samples.par_iter_mut().with_min_len(width).enumerate().for_each(|(i, sample)| {
+        self.samples.par_iter_mut().enumerate().for_each(|(i, sample)| {
             let (row, col) = core::row_col(i, width);
 
             let s = core::lerp(-1.0, 1.0, (col as f64 / last_col));
