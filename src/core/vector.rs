@@ -226,9 +226,9 @@ impl Vec {
 
     pub fn to_rgba8(&self) -> [u8; 4] {
         [
-            (self.x * 255.99999) as u8,
-            (self.y * 255.99999) as u8,
-            (self.z * 255.99999) as u8,
+            math::clamp((self.x * 255.99999) as u8, 0u8, 255u8),
+            math::clamp((self.y * 255.99999) as u8, 0u8, 255u8),
+            math::clamp((self.z * 255.99999) as u8, 0u8, 255u8),
             255u8
         ]
     }

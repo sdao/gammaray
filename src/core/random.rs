@@ -81,7 +81,7 @@ impl IndependentSample<(f64, f64)> for AreaSampleDisk {
  *                hemisphere and true will sample from the negative hemisphere
  */
 pub struct CosineSampleHemisphere {
-    flipped: bool,
+    pub flipped: bool,
 }
 
 impl CosineSampleHemisphere {

@@ -50,17 +50,19 @@ impl Stage {
     }
 
     fn trace_single_ray(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
+        let mut depth = 0usize;
         let mut color: Vec = Vec::one();
+        let mut lume: Vec = Vec::zero();
         let mut current_ray: Ray = initial_ray.clone();
         while !current_ray.direction.is_exactly_zero() {
             let intersection = self.intersect_world(&current_ray);
             match intersection {
                 Intersection::Hit {dist, normal, prim} => {
-                    let pt = current_ray.at(dist);
-                    let kernel_result = kernel.bounce(dist, &normal, &prim);
-                    color = color.comp_mult(&kernel_result.color);
+                    let kernel_result = kernel.bounce(depth, &current_ray, &color, &normal, &prim);
+                    lume = &lume + &color.comp_mult(&kernel_result.illum);
+                    color = color.comp_mult(&kernel_result.life);
                     current_ray = Ray::new(
-                            &pt + &(&kernel_result.direction * 1e-6),
+                            &current_ray.at(dist) + &(&kernel_result.direction * 1e-6),
                             kernel_result.direction);
                 },
                 Intersection::NoHit => {
@@ -68,8 +70,10 @@ impl Stage {
                     current_ray = Ray::zero();
                 }
             }
+
+            depth += 1;
         }
-        color
+        lume
     }
 
     pub fn trace(&self,

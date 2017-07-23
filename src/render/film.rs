@@ -49,7 +49,7 @@ impl Film {
         }
     }
 
-    pub fn commit_samples(&mut self) {
+    fn commit_samples(&mut self) {
         for sample in &self.samples {
             let u = sample.u;
             let v = sample.v;

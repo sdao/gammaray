@@ -4,17 +4,25 @@ use core;
 
 pub struct Sphere {
     color: core::Vec,
+    mat: prim::Material,
     radius: f64,
     xform: core::Mat,
     xform_inv: core::Mat,
 }
 
 impl Sphere {
-    pub fn new(display_color: &core::Vec, xform: &core::Mat, radius: f64) -> Sphere {
+    pub fn new(display_color: core::Vec, material: prim::Material, xform: core::Mat,
+        radius: f64)
+        -> Sphere
+    {
+        let xf = xform;
+        let inverted = xf.inverted();
         Sphere {
-            color: display_color.clone(),
-            radius: radius, xform: xform.clone(),
-            xform_inv: xform.inverted()
+            color: display_color,
+            mat: material,
+            radius: radius,
+            xform: xf,
+            xform_inv: inverted
         }
     }
 }
@@ -22,6 +30,10 @@ impl Sphere {
 impl prim::Prim for Sphere {
     fn display_color(&self) -> &core::Vec {
         &self.color
+    }
+
+    fn material(&self) -> &prim::Material {
+        &self.mat
     }
 
     fn local_to_world_xform(&self) -> &core::Mat {

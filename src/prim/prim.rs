@@ -1,7 +1,19 @@
 use core;
 
+pub struct Material {
+    pub albedo: core::Vec,
+    pub incandescence: core::Vec,
+}
+
+impl Material {
+    pub fn new(albedo: core::Vec, incandescence: core::Vec) -> Material {
+        Material {albedo: albedo, incandescence: incandescence}
+    }
+}
+
 pub trait Prim {
     fn display_color(&self) -> &core::Vec;
+    fn material(&self) -> &Material;
     fn local_to_world_xform(&self) -> &core::Mat;
     fn world_to_local_xform(&self) -> &core::Mat;
     /**
