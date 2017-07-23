@@ -20,22 +20,39 @@ pub trait Kernel {
 }
 
 pub struct DisplayColorKernel {
+    pub max_depth: usize,
 }
 
 impl DisplayColorKernel {
     pub fn new() -> DisplayColorKernel {
-        DisplayColorKernel {}
+        DisplayColorKernel {max_depth: 1}
+    }
+    pub fn with_max_depth(max_depth: usize) -> DisplayColorKernel {
+        DisplayColorKernel {max_depth: max_depth}
     }
 }
 
 impl Kernel for DisplayColorKernel {
-    fn bounce(&self, _: usize, _: &core::Vec, _: &core::Vec, prim: &Box<prim::Prim + Sync>,
-        _: &mut rand::XorShiftRng) -> KernelResult
+    fn bounce(&self, depth: usize, _: &core::Vec, normal: &core::Vec,
+        prim: &Box<prim::Prim + Sync>, rng: &mut rand::XorShiftRng) -> KernelResult
     {
-        KernelResult {
-            throughput: core::Vec::zero(),
-            light: prim.display_color().clone(),
-            direction: core::Vec::zero()
+        if depth == self.max_depth {
+            KernelResult {
+                throughput: core::Vec::zero(),
+                light: core::Vec::one(),
+                direction: core::Vec::zero()
+            }
+        }
+        else {
+            let (tangent, binormal) = normal.coord_system();
+            let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: false};
+            let outgoing_local = cosine_sample_hemis.ind_sample(rng);
+            let outgoing_world = outgoing_local.local_to_world(&tangent, &binormal, &normal);
+            KernelResult {
+                throughput: prim.display_color().clone(),
+                light: core::Vec::zero(),
+                direction: outgoing_world
+            }
         }
     }
 }
@@ -60,8 +77,8 @@ impl Kernel for PathTracerKernel {
 
         // Check for scattering (reflection/transmission).
         let (tangent, binormal) = normal.coord_system();
-        let incoming_local = incoming_direction.world_to_local(&tangent, &binormal, &normal);
-        let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: incoming_local.z < 0.0};
+        // XXX let incoming_local = incoming_direction.world_to_local(&tangent, &binormal, &normal);
+        let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: false};
         let outgoing_local = cosine_sample_hemis.ind_sample(rng);
         let bsdf = &material.albedo * std::f64::consts::FRAC_1_PI;
         let pdf = core::CosineSampleHemisphere::pdf(&outgoing_local);

@@ -52,7 +52,7 @@ impl Stage {
         closest
     }
 
-    fn trace_single_ray(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
+    pub fn trace_single_ray(&self, initial_ray: &Ray, kernel: &kernel::Kernel) -> Vec {
         let mut thread_rng = rand::thread_rng();
         let mut rng = rand::XorShiftRng::from_seed([
                 thread_rng.next_u32(),
@@ -64,7 +64,7 @@ impl Stage {
         let mut throughput: Vec = Vec::one();
         let mut light: Vec = Vec::zero();
         let mut current_ray: Ray = initial_ray.clone();
-        while !current_ray.direction.is_exactly_zero() {
+        while !throughput.is_exactly_zero() {
             let intersection = self.intersect_world(&current_ray);
             match intersection {
                 Intersection::Hit {dist, normal, prim} => {

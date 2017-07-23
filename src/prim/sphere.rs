@@ -3,7 +3,6 @@ use prim;
 use core;
 
 pub struct Sphere {
-    color: core::Vec,
     mat: prim::Material,
     radius: f64,
     xform: core::Mat,
@@ -11,14 +10,11 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    pub fn new(display_color: core::Vec, material: prim::Material, xform: core::Mat,
-        radius: f64)
-        -> Sphere
+    pub fn new(material: prim::Material, xform: core::Mat, radius: f64) -> Sphere
     {
         let xf = xform;
         let inverted = xf.inverted();
         Sphere {
-            color: display_color,
             mat: material,
             radius: radius,
             xform: xf,
@@ -29,7 +25,7 @@ impl Sphere {
 
 impl prim::Prim for Sphere {
     fn display_color(&self) -> &core::Vec {
-        &self.color
+        &self.mat.albedo
     }
 
     fn material(&self) -> &prim::Material {
@@ -84,7 +80,7 @@ impl prim::Prim for Sphere {
                     pt
                 }.normalized();
 
-                return (res_neg, normal)
+                return (res_pos, normal)
             }
         }
 

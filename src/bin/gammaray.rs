@@ -12,17 +12,19 @@ extern crate time;
 pub fn main() {
     let c = core::Camera::default();
     let s1 = prim::Sphere::new(
-        core::Vec::red(),
-        prim::Material::new(core::Vec::red(), core::Vec::zero()),
+        prim::Material::new(core::Vec::new(0.0, 0.5, 1.0), core::Vec::zero()),
         core::Mat::translation(&core::Vec::new(0.0, 0.0, -100.0)),
         5.0);
     let s2 = prim::Sphere::new(
-        core::Vec::one(),
-        prim::Material::new(core::Vec::zero(), core::Vec::one()),
-        core::Mat::translation(&core::Vec::new(15.0, 0.0, -100.0)),
+        prim::Material::new(core::Vec::zero(), core::Vec::new(2.0, 2.0, 2.0)),
+        core::Mat::translation(&core::Vec::new(15.0, 3.0, -100.0)),
         5.0);
+    let s3 = prim::Sphere::new(
+        prim::Material::new(core::Vec::new(0.0, 0.5, 0.0), core::Vec::zero()),
+        core::Mat::translation(&core::Vec::new(0.0, 0.0, -50.0)),
+        100.0);
 
-    let prims: Vec<Box<prim::Prim + Sync>> = vec![Box::new(s1), Box::new(s2)];
+    let prims: Vec<Box<prim::Prim + Sync>> = vec![Box::new(s1), Box::new(s2), Box::new(s3)];
     let stage = render::Stage::new(prims);
     let kernel = render::PathTracerKernel::new();
 
