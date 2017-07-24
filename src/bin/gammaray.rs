@@ -26,12 +26,12 @@ pub fn main() {
     let height: usize = 512;
     let width = (height as f64 * c.aspect_ratio()) as usize;
     println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
-    let mut film = render::Film::new(width, height);
 
     let stage = render::Stage::new(prims);
     let kernel = render::PathTracerKernel::new();
 
-    let shared_data = ui::SharedData::new(&film);
+    let mut film = render::Film::new(width, height);
+    let shared_data = ui::SharedData::new(width, height);
     let thread_shared_data = shared_data.clone();
     thread::spawn(move || {
         let mut iter_count = 1usize;
@@ -39,7 +39,13 @@ pub fn main() {
             let start = std::time::Instant::now();
             stage.trace(&c, &kernel, &mut film);
             let stop = std::time::Instant::now();
-            thread_shared_data.store(&film);
+
+            match thread_shared_data.store() {
+                Some(guard) => {
+                    film.write_to_rgba8(&mut guard.get());
+                },
+                None => {}
+            }
 
             let duration = stop - start;
             let secs = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;

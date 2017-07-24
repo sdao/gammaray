@@ -103,4 +103,13 @@ impl Film {
 
         self.commit_samples();
     }
+
+    pub fn write_to_rgba8(&mut self, rgba8: &mut std::vec::Vec<[u8; 4]>) {
+        assert!(self.pixels.len() == rgba8.len());
+
+        rgba8.par_iter_mut().enumerate().for_each(|(i, rgba8_pixel)| {
+            let val = (&self.pixels[i].accum / self.pixels[i].weight).to_rgba8();
+            rgba8_pixel.copy_from_slice(&val);
+        });
+    }
 }

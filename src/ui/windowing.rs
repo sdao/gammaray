@@ -1,8 +1,5 @@
-use ui;
+use ui::sync;
 
-use render;
-
-use std;
 use gfx;
 use gfx::format::Rgba8;
 use gfx::traits::FactoryExt;
@@ -70,21 +67,7 @@ trait FactoryWindowingExt<R: gfx::Resources>: gfx::Factory<R> {
 
 impl<R: gfx::Resources, F: gfx::Factory<R>> FactoryWindowingExt<R> for F {}
 
-fn film_pixel_to_rgba8(
-    pixels: &std::vec::Vec<render::FilmPixel>,
-    buffer: &mut std::vec::Vec<[u8; 4]>)
-{
-    assert!(pixels.len() == buffer.len());
-
-    let mut i = 0;
-    for chunk in buffer {
-        let val = (&pixels[i].accum / pixels[i].weight).to_rgba8();
-        chunk.copy_from_slice(&val);
-        i += 1;
-    }
-}
-
-pub fn image_preview_window(shared_data: ui::sync::SharedData)
+pub fn image_preview_window(shared_data: sync::SharedData)
 {
     let (width, height) = (shared_data.width as u32, shared_data.height as u32);
 
@@ -104,8 +87,6 @@ pub fn image_preview_window(shared_data: ui::sync::SharedData)
         include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/fragment.glsl")),
         pipe::new()
     ).unwrap();
-
-    let mut rgb = vec![[255u8; 4]; (width * height) as usize];
 
     // Send buffers and uniform data.
     let (vertex_buffer, slice) = factory.create_vertex_buffer_with_slice(&SQUARE, ());
@@ -140,10 +121,9 @@ pub fn image_preview_window(shared_data: ui::sync::SharedData)
 
         match shared_data.load() {
             Some(guard) => {
-                film_pixel_to_rgba8(&guard.get(), &mut rgb);
                 let info = tex_desc.to_image_info(0u8);
-                encoder.update_texture::<gfx::format::R8_G8_B8_A8, Rgba8>(&tex, None, info, &rgb)
-                        .unwrap();
+                encoder.update_texture::<gfx::format::R8_G8_B8_A8, Rgba8>(
+                        &tex, None, info, &guard.get()).unwrap();
             },
             None => {}
         }
