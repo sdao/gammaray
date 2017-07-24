@@ -1,6 +1,9 @@
 use core;
 
 use std;
+use rand;
+use rand::distributions::IndependentSample;
+use rand::distributions::range::Range;
 use rayon::prelude::*;
 
 const FILTER_WIDTH: f64 = 2.0;
@@ -81,11 +84,18 @@ impl Film {
         let last_col = (self.width - 1) as f64;
         let last_row = (self.height - 1) as f64;
 
+        let range = Range::new(-FILTER_WIDTH, FILTER_WIDTH);
+
         self.samples.par_iter_mut().enumerate().for_each(|(i, sample)| {
+            let mut thread_rng = rand::thread_rng();
+
             let (row, col) = core::row_col(i, width);
 
-            let s = core::lerp(-1.0, 1.0, (col as f64 / last_col));
-            let t = core::lerp(-1.0, 1.0, (row as f64 / last_row));
+            let c = col as f64 + range.ind_sample(&mut thread_rng);
+            let r = row as f64 + range.ind_sample(&mut thread_rng);
+
+            let s = core::lerp(-1.0, 1.0, (c / last_col));
+            let t = core::lerp(-1.0, 1.0, (r / last_row));
             sample.color = sampler(s, t);
             sample.u = col as f64; // XXX: apply jitter to row, col.
             sample.v = row as f64;
