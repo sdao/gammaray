@@ -15,13 +15,13 @@ enum Intersection<'a> {
     Hit {
         dist: f64,
         normal: Vec,
-        prim: &'a Box<Prim + Sync>
+        prim: &'a Box<Prim + Sync + Send>
     },
     NoHit
 }
 
 impl<'a> Intersection<'a> {
-    pub fn hit(dist: f64, normal: Vec, prim: &'a Box<Prim + Sync>) -> Intersection<'a> {
+    pub fn hit(dist: f64, normal: Vec, prim: &'a Box<Prim + Sync + Send>) -> Intersection<'a> {
         Intersection::Hit {dist: dist, normal: normal, prim: prim}
     }
 
@@ -31,11 +31,11 @@ impl<'a> Intersection<'a> {
 }
 
 pub struct Stage {
-    pub prims: std::vec::Vec<Box<Prim + Sync>>
+    pub prims: std::vec::Vec<Box<Prim + Sync + Send>>
 }
 
 impl Stage {
-    pub fn new(prims: std::vec::Vec<Box<Prim + Sync>>) -> Stage {
+    pub fn new(prims: std::vec::Vec<Box<Prim + Sync + Send>>) -> Stage {
         Stage {prims: prims}
     }
 
@@ -90,7 +90,7 @@ impl Stage {
 
     pub fn trace(&self,
         camera: &Camera,
-        kernel: &(kernel::Kernel + Sync),
+        kernel: &(kernel::Kernel + Sync + Send),
         film: &mut film::Film)
     {
         film.add_samples(&|u, v| {

@@ -1,8 +1,12 @@
+use ui;
+
+use render;
+
+use std;
 use gfx;
 use gfx::format::Rgba8;
 use gfx::traits::FactoryExt;
 use gfx::Device;
-use gfx::Factory;
 use gfx_window_glutin;
 use glutin;
 
@@ -38,7 +42,52 @@ const SQUARE: [Vertex; 6] = [
     Vertex { pos: [1.0, 1.0], st: [1.0, 1.0] }
 ];
 
-pub fn image_preview_window(image_data: &[&[u8]], width: u32, height: u32) {
+trait FactoryWindowingExt<R: gfx::Resources>: gfx::Factory<R> {
+    fn create_texture_mutable_u8<T: gfx::format::TextureFormat>(
+        &mut self, kind: gfx::texture::Kind)
+        -> Result<
+            (gfx::handle::Texture<R, T::Surface>, gfx::handle::ShaderResourceView<R, T::View>,
+                gfx::texture::Info),
+            gfx::CombinedError>
+    {
+        let surface = <T::Surface as gfx::format::SurfaceTyped>::get_surface_type();
+        let desc = gfx::texture::Info {
+            kind: kind,
+            levels: 1u8,
+            format: surface,
+            bind: gfx::memory::SHADER_RESOURCE,
+            usage: gfx::memory::Usage::Dynamic,
+        };
+        let cty = <T::Channel as gfx::format::ChannelTyped>::get_channel_type();
+        let raw = try!(self.create_texture_raw(desc, Some(cty), None));
+        let levels = (0, raw.get_info().levels - 1);
+        let tex = gfx::memory::Typed::new(raw);
+        let view = try!(self.view_texture_as_shader_resource::<T>(
+                &tex, levels, gfx::format::Swizzle::new()));
+        Ok((tex, view, desc))
+    }
+}
+
+impl<R: gfx::Resources, F: gfx::Factory<R>> FactoryWindowingExt<R> for F {}
+
+fn film_pixel_to_rgba8(
+    pixels: &std::vec::Vec<render::FilmPixel>,
+    buffer: &mut std::vec::Vec<[u8; 4]>)
+{
+    assert!(pixels.len() == buffer.len());
+
+    let mut i = 0;
+    for chunk in buffer {
+        let val = (&pixels[i].accum / pixels[i].weight).to_rgba8();
+        chunk.copy_from_slice(&val);
+        i += 1;
+    }
+}
+
+pub fn image_preview_window(shared_data: ui::sync::SharedData)
+{
+    let (width, height) = (shared_data.width as u32, shared_data.height as u32);
+
     // Initialize window.
     let events_loop = glutin::EventsLoop::new();
     let builder = glutin::WindowBuilder::new()
@@ -56,18 +105,20 @@ pub fn image_preview_window(image_data: &[&[u8]], width: u32, height: u32) {
         pipe::new()
     ).unwrap();
 
+    let mut rgb = vec![[255u8; 4]; (width * height) as usize];
+
     // Send buffers and uniform data.
     let (vertex_buffer, slice) = factory.create_vertex_buffer_with_slice(&SQUARE, ());
     let sampler = factory.create_sampler_linear();
     let kind = gfx::texture::Kind::D2(
-            width as gfx::texture::Size,
-            height as gfx::texture::Size,
-            gfx::texture::AaMode::Single);
-    let (_, texture) = factory.create_texture_immutable_u8::<Rgba8>(kind, image_data).unwrap();
+                width as gfx::texture::Size,
+                height as gfx::texture::Size,
+                gfx::texture::AaMode::Single);
+    let (tex, tex_view, tex_desc) = factory.create_texture_mutable_u8::<Rgba8>(kind).unwrap();
     let mut data = pipe::Data {
         vbuf: vertex_buffer,
         transform: factory.create_constant_buffer(1),
-        tex: (texture, sampler),
+        tex: (tex_view, sampler),
         out: color_view,
     };
 
@@ -86,6 +137,16 @@ pub fn image_preview_window(image_data: &[&[u8]], width: u32, height: u32) {
                 _ => (),
             }
         });
+
+        match shared_data.load() {
+            Some(guard) => {
+                film_pixel_to_rgba8(&guard.get(), &mut rgb);
+                let info = tex_desc.to_image_info(0u8);
+                encoder.update_texture::<gfx::format::R8_G8_B8_A8, Rgba8>(&tex, None, info, &rgb)
+                        .unwrap();
+            },
+            None => {}
+        }
 
         let (in_width, in_height) = match window.get_inner_size_pixels() {
             None => (0, 0),

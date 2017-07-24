@@ -11,8 +11,6 @@ opt-level = 3
 
 [dependencies]
 rand = "0.3"
-image = "0.14"
-time = "0.1"
 gfx = "0.16"
 glutin = "0.8"
 gfx_window_glutin = "0.16"

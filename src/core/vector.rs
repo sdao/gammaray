@@ -4,7 +4,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::ops::{Add, Sub, Mul, Div, Neg};
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Vec {
     pub x: f64,
     pub y: f64,

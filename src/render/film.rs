@@ -20,7 +20,7 @@ impl FilmSample {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct FilmPixel {
     pub accum: core::Vec,
     pub weight: f64
