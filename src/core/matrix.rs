@@ -131,7 +131,7 @@ impl Mat {
         output
     }
 
-    fn get_determinant3(&self, r1: usize, r2: usize, r3: usize, c1: usize, c2: usize, c3: usize)
+    fn determinant3(&self, r1: usize, r2: usize, r3: usize, c1: usize, c2: usize, c3: usize)
         -> f64
     {
         (  self[r1][c1] * self[r2][c2] * self[r3][c3]
@@ -142,11 +142,11 @@ impl Mat {
 	     - self[r1][c3] * self[r2][c2] * self[r3][c1])
     }
 
-    pub fn get_determinant(&self) -> f64 {
-        (- self[0][3] * self.get_determinant3(1, 2, 3, 0, 1, 2)
-         + self[1][3] * self.get_determinant3(0, 2, 3, 0, 1, 2)
-         - self[2][3] * self.get_determinant3(0, 1, 3, 0, 1, 2)
-         + self[3][3] * self.get_determinant3(0, 1, 2, 0, 1, 2))
+    pub fn determinant(&self) -> f64 {
+        (- self[0][3] * self.determinant3(1, 2, 3, 0, 1, 2)
+         + self[1][3] * self.determinant3(0, 2, 3, 0, 1, 2)
+         - self[2][3] * self.determinant3(0, 1, 3, 0, 1, 2)
+         + self[3][3] * self.determinant3(0, 1, 2, 0, 1, 2))
     }
 
     pub fn transform(&self, v: &vector::Vec) -> vector::Vec {

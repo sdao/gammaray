@@ -52,10 +52,38 @@ impl Film {
         }
     }
 
-    fn commit_samples(&mut self) {
-        for sample in &self.samples {
-            let u = sample.u;
-            let v = sample.v;
+    pub fn compute_sample_points(&self, samples: &mut std::vec::Vec<FilmSample>) {
+        let mut thread_rng = rand::thread_rng();
+        let filter_range = Range::new(-FILTER_WIDTH, FILTER_WIDTH);
+
+        samples.clear();
+        samples.reserve_exact(self.width * self.height);
+        for row in 0..self.height {
+            for col in 0..self.width {
+                // XXX: This is wrong. Look at sampling in PBRT.
+                let last_col = (self.width - 1) as f64;
+                let last_row = (self.height - 1) as f64;
+
+                let c = col as f64 + filter_range.ind_sample(&mut thread_rng);
+                let r = row as f64 + filter_range.ind_sample(&mut thread_rng);
+
+                let s = core::lerp(-1.0, 1.0, (c / last_col));
+                let t = core::lerp(-1.0, 1.0, (r / last_row));
+                samples.push(FilmSample {color: core::Vec::zero(), u: s, v: t});
+            }
+        }
+    }
+
+    pub fn commit_samples(&mut self, samples: &std::vec::Vec<FilmSample>) {
+        for sample in samples {
+            let uu = sample.u;
+            let vv = sample.v;
+
+            // XXX: This is wrong. Look at sampling in PBRT.
+            let last_col = (self.width - 1) as f64;
+            let last_row = (self.height - 1) as f64;
+            let u = core::lerp(0.0, last_col, 0.5 * (uu + 1.0));
+            let v = core::lerp(0.0, last_row, 0.5 * (vv + 1.0));
 
             let min_u = core::clamp((u - FILTER_WIDTH).ceil() as usize, 0, self.width - 1);
             let max_u = core::clamp((u + FILTER_WIDTH).floor() as usize, 0, self.width - 1);
@@ -75,33 +103,6 @@ impl Film {
                 }
             }
         }
-    }
-
-    pub fn add_samples(&mut self, sampler: &(Fn(f64, f64) -> core::Vec + Sync)) {
-        let width = self.width;
-
-        // XXX: This is wrong. Look at sampling in PBRT.
-        let last_col = (self.width - 1) as f64;
-        let last_row = (self.height - 1) as f64;
-
-        let range = Range::new(-FILTER_WIDTH, FILTER_WIDTH);
-
-        self.samples.par_iter_mut().enumerate().for_each(|(i, sample)| {
-            let mut thread_rng = rand::thread_rng();
-
-            let (row, col) = core::row_col(i, width);
-
-            let c = col as f64 + range.ind_sample(&mut thread_rng);
-            let r = row as f64 + range.ind_sample(&mut thread_rng);
-
-            let s = core::lerp(-1.0, 1.0, (c / last_col));
-            let t = core::lerp(-1.0, 1.0, (r / last_row));
-            sample.color = sampler(s, t);
-            sample.u = col as f64; // XXX: apply jitter to row, col.
-            sample.v = row as f64;
-        });
-
-        self.commit_samples();
     }
 
     pub fn write_to_rgba8(&mut self, rgba8: &mut std::vec::Vec<[u8; 4]>) {

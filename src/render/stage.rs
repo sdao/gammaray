@@ -10,6 +10,7 @@ use prim::Prim;
 use std;
 use rand;
 use rand::{Rng, SeedableRng};
+use rayon::prelude::*;
 
 enum Intersection<'a> {
     Hit {
@@ -30,15 +31,11 @@ impl<'a> Intersection<'a> {
     }
 }
 
-pub struct Stage {
+struct StageHolder {
     pub prims: std::vec::Vec<Box<Prim + Sync + Send>>
 }
 
-impl Stage {
-    pub fn new(prims: std::vec::Vec<Box<Prim + Sync + Send>>) -> Stage {
-        Stage {prims: prims}
-    }
-
+impl StageHolder {
     fn intersect_world(&self, ray: &Ray) -> Intersection {
         let mut closest_dist = std::f64::MAX;
         let mut closest: Intersection = Intersection::no_hit();
@@ -87,15 +84,32 @@ impl Stage {
 
         light
     }
+}
 
-    pub fn trace(&self,
+pub struct Stage {
+    holder: StageHolder,
+    sample_storage: std::vec::Vec<film::FilmSample>
+}
+
+impl Stage {
+    pub fn new(prims: std::vec::Vec<Box<Prim + Sync + Send>>) -> Stage {
+        Stage {
+            holder: StageHolder {prims: prims},
+            sample_storage: vec![]
+        }
+    }
+
+    pub fn trace(&mut self,
         camera: &Camera,
         kernel: &(kernel::Kernel + Sync + Send),
         film: &mut film::Film)
     {
-        film.add_samples(&|u, v| {
-            let ray = camera.compute_ray(u, v);
-            self.trace_single_ray(&ray, kernel)
+        film.compute_sample_points(&mut self.sample_storage);
+        let holder = &self.holder;
+        self.sample_storage.par_iter_mut().for_each(|sample| {
+            let ray = camera.compute_ray(sample.u, sample.v);
+            sample.color = holder.trace_single_ray(&ray, kernel);
         });
+        film.commit_samples(&self.sample_storage);
     }
 }

@@ -23,11 +23,6 @@ impl SharedData {
     }
 
     pub fn store(&self) -> Option<SharedDataGuard> {
-        // if !self.has_new.load(atomic::Ordering::Relaxed) {
-        //     let mut data = self.mutex.lock().unwrap();
-        //     data.copy_from_slice(&film.pixels);
-        //     self.has_new.store(true, atomic::Ordering::Relaxed);
-        // }
         if !self.has_new.load(atomic::Ordering::Relaxed) {
             Some(SharedDataGuard {
                 shared_data: self,

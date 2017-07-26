@@ -27,7 +27,7 @@ pub fn main() {
     let width = (height as f64 * c.aspect_ratio()) as usize;
     println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
 
-    let stage = render::Stage::new(prims);
+    let mut stage = render::Stage::new(prims);
     let kernel = render::PathTracerKernel::new();
 
     let mut film = render::Film::new(width, height);
