@@ -80,6 +80,7 @@ impl Camera {
      * Computes the ray starting at the viewpoint and extending through the given window position.
      * The window position is defined in normalized coordinates in [-1, 1] where (0, 0) is the
      * center, (-1, 1) is the lower-left, and (1, 1) is the upper-right.
+     * Other documentation may refer to these types of coordinates as being in "lens space".
      */
     pub fn compute_ray(&self, s: f64, t: f64) -> ray::Ray {
         let window_max = self.window_max();

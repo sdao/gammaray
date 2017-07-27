@@ -1,6 +1,7 @@
 use core;
 
 use std;
+use std::cmp;
 use rand;
 use rand::distributions::IndependentSample;
 use rand::distributions::range::Range;
@@ -11,15 +12,15 @@ const FILTER_WIDTH: f64 = 2.0;
 #[derive(Clone)]
 pub struct FilmSample {
     pub color: core::Vec,
-    // Column of the sample, in image space. Can be fractional.
-    pub u: f64,
-    // Row of the sample, in image space. Can be fractional.
-    pub v: f64,
+    // Column of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
+    pub s: f64,
+    // Row of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
+    pub t: f64,
 }
 
 impl FilmSample {
     pub fn zero() -> FilmSample {
-        FilmSample {color: core::Vec::zero(), u: 0.0, v: 0.0}
+        FilmSample {color: core::Vec::zero(), s: 0.0, t: 0.0}
     }
 }
 
@@ -58,44 +59,45 @@ impl Film {
 
         samples.clear();
         samples.reserve_exact(self.width * self.height);
-        for row in 0..self.height {
-            for col in 0..self.width {
-                // XXX: This is wrong. Look at sampling in PBRT.
-                let last_col = (self.width - 1) as f64;
-                let last_row = (self.height - 1) as f64;
 
-                let c = col as f64 + filter_range.ind_sample(&mut thread_rng);
-                let r = row as f64 + filter_range.ind_sample(&mut thread_rng);
+        let (widthf, heightf) = (self.width as f64, self.height as f64);
+        for row_discr in 0..self.height {
+            let row_cont = 0.5 + row_discr as f64;
+            for col_discr in 0..self.width {
+                let col_cont = 0.5 + col_discr as f64;
 
-                let s = core::lerp(-1.0, 1.0, (c / last_col));
-                let t = core::lerp(-1.0, 1.0, (r / last_row));
-                samples.push(FilmSample {color: core::Vec::zero(), u: s, v: t});
+                let row_cont_jitter = row_cont + filter_range.ind_sample(&mut thread_rng);
+                let col_cont_jitter = col_cont + filter_range.ind_sample(&mut thread_rng);
+
+                let s = core::lerp(-1.0, 1.0, col_cont_jitter / widthf);
+                let t = core::lerp(-1.0, 1.0, row_cont_jitter / heightf);
+                samples.push(FilmSample {color: core::Vec::zero(), s: s, t: t});
             }
         }
     }
 
-    pub fn commit_samples(&mut self, samples: &std::vec::Vec<FilmSample>) {
+    pub fn report_samples(&mut self, samples: &std::vec::Vec<FilmSample>) {
+        let (widthf, heightf) = (self.width as f64, self.height as f64);
         for sample in samples {
-            let uu = sample.u;
-            let vv = sample.v;
+            let col_cont = core::lerp(0.0, widthf, 0.5 * (sample.s + 1.0));
+            let row_cont = core::lerp(0.0, heightf, 0.5 * (sample.t + 1.0));
+            let col_discr = col_cont - 0.5;
+            let row_discr = row_cont - 0.5;
 
-            // XXX: This is wrong. Look at sampling in PBRT.
-            let last_col = (self.width - 1) as f64;
-            let last_row = (self.height - 1) as f64;
-            let u = core::lerp(0.0, last_col, 0.5 * (uu + 1.0));
-            let v = core::lerp(0.0, last_row, 0.5 * (vv + 1.0));
+            // Note: the min values must be casted to isize first because they may contain negative
+            // values. The max values can be casted to usize first because we don't have to deal with
+            // negatives.
+            let min_col = cmp::max((col_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
+            let max_col = cmp::min((col_discr + FILTER_WIDTH).floor() as usize, self.width - 1);
+            let min_row = cmp::max((row_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
+            let max_row = cmp::min((row_discr + FILTER_WIDTH).floor() as usize, self.height - 1);
 
-            let min_u = core::clamp((u - FILTER_WIDTH).ceil() as usize, 0, self.width - 1);
-            let max_u = core::clamp((u + FILTER_WIDTH).floor() as usize, 0, self.width - 1);
-            let min_v = core::clamp((v - FILTER_WIDTH).ceil() as usize, 0, self.height - 1);
-            let max_v = core::clamp((v + FILTER_WIDTH).floor() as usize, 0, self.height - 1);
-
-            for row in min_v..(max_v + 1) {
-                for col in min_u..(max_u + 1) {
-                    let mut pixel = &mut self.pixels[core::index(row, col, self.width)];
+            for y in (min_row)..(max_row + 1) {
+                for x in (min_col)..(max_col + 1) {
+                    let mut pixel = &mut self.pixels[core::index(y, x, self.width)];
                     let weight = core::mitchell_filter2(
-                        u - col as f64,
-                        v - row as f64,
+                        x as f64 - col_discr,
+                        y as f64 - row_discr,
                         FILTER_WIDTH);
 
                     pixel.accum = &pixel.accum + &(&sample.color * weight);

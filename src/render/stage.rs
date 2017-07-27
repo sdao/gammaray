@@ -107,9 +107,9 @@ impl Stage {
         film.compute_sample_points(&mut self.sample_storage);
         let holder = &self.holder;
         self.sample_storage.par_iter_mut().for_each(|sample| {
-            let ray = camera.compute_ray(sample.u, sample.v);
+            let ray = camera.compute_ray(sample.s, sample.t);
             sample.color = holder.trace_single_ray(&ray, kernel);
         });
-        film.commit_samples(&self.sample_storage);
+        film.report_samples(&self.sample_storage);
     }
 }
