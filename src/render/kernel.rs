@@ -1,6 +1,6 @@
 use core;
 
-use prim;
+use geom;
 
 use std;
 use rand;
@@ -16,7 +16,7 @@ pub struct KernelResult {
 pub trait Kernel {
     // XXX: ray could just be direction here.
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-            prim: &Box<prim::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult;
+            prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult;
 }
 
 pub struct DisplayColorKernel {
@@ -34,7 +34,7 @@ impl DisplayColorKernel {
 
 impl Kernel for DisplayColorKernel {
     fn bounce(&self, depth: usize, _: &core::Vec, normal: &core::Vec,
-        prim: &Box<prim::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult
+        prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult
     {
         if depth == self.max_depth {
             KernelResult {
@@ -70,7 +70,7 @@ const RUSSIAN_ROULETTE_DEPTH: usize = 10;
 
 impl Kernel for PathTracerKernel {
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-        prim: &Box<prim::Prim + Sync + Send>, rng: &mut rand::XorShiftRng)
+        prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng)
         -> KernelResult
     {
         let material = prim.material();

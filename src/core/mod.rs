@@ -1,3 +1,6 @@
+mod bbox;
+pub use core::bbox::BBox;
+
 mod camera;
 pub use core::camera::Camera;
 

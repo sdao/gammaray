@@ -4,6 +4,6 @@ extern crate glutin;
 extern crate rand;
 extern crate rayon;
 pub mod core;
-pub mod prim;
+pub mod geom;
 pub mod render;
 pub mod ui;

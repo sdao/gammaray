@@ -1,4 +1,4 @@
-use prim;
+use geom::prim;
 
 use core;
 
@@ -40,7 +40,14 @@ impl prim::Prim for Sphere {
         &self.xform_inv
     }
 
-    fn intersect_local(&self, ray: &core::Ray) -> (f64, core::Vec) {
+    fn bbox_local(&self, _: usize) -> core::BBox {
+        core::BBox {
+            min: core::Vec::new(-self.radius, -self.radius, -self.radius),
+            max: core::Vec::new(self.radius, self.radius, self.radius)
+        }
+    }
+
+    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f64, core::Vec) {
         let origin = &ray.origin;
         let l = &ray.direction;
 

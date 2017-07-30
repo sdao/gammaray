@@ -1,6 +1,6 @@
 extern crate gammaray;
 use gammaray::core;
-use gammaray::prim;
+use gammaray::geom;
 use gammaray::render;
 use gammaray::ui;
 
@@ -8,24 +8,24 @@ use std::thread;
 
 pub fn main() {
     let c = core::Camera::default();
-    let s1 = prim::Sphere::new(
-        prim::Material::new(core::Vec::new(0.0, 0.5, 1.0), core::Vec::zero()),
+    let s1 = geom::Sphere::new(
+        geom::Material::new(core::Vec::new(0.0, 0.5, 1.0), core::Vec::zero()),
         core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
         7.0);
-    let s2 = prim::Sphere::new(
-        prim::Material::new(core::Vec::zero(), core::Vec::new(2.0, 2.0, 2.0)),
+    let s2 = geom::Sphere::new(
+        geom::Material::new(core::Vec::zero(), core::Vec::new(2.0, 2.0, 2.0)),
         core::Mat::translation(&core::Vec::new(12.0, 3.0, -90.0)),
         5.0);
-    let s3 = prim::Sphere::new(
-        prim::Material::new(core::Vec::new(0.5, 0.9, 0.0), core::Vec::zero()),
+    let s3 = geom::Sphere::new(
+        geom::Material::new(core::Vec::new(0.5, 0.9, 0.0), core::Vec::zero()),
         core::Mat::translation(&core::Vec::new(-25.0, 0.0, -50.0)),
         75.0);
-    let s4 = prim::Sphere::new(
-        prim::Material::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
+    let s4 = geom::Sphere::new(
+        geom::Material::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
         core::Mat::translation(&core::Vec::new(6.0, -8.0, -100.0)),
         4.0);
 
-    let prims: Vec<Box<prim::Prim + Sync + Send>> = vec![
+    let prims: Vec<Box<geom::Prim + Sync + Send>> = vec![
             Box::new(s1), Box::new(s2), Box::new(s3), Box::new(s4)];
 
     let height: usize = 512;

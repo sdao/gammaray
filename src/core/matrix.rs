@@ -1,3 +1,4 @@
+use core::bbox;
 use core::math;
 use core::quat;
 use core::ray;
@@ -169,6 +170,18 @@ impl Mat {
             origin: self.transform(&r.origin),
             direction: self.transform_dir(&r.direction)
         }
+    }
+
+    pub fn transform_bbox(&self, b: &bbox::BBox) -> bbox::BBox {
+        bbox::BBox::empty()
+                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.min.y, b.min.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.min.y, b.min.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.max.y, b.min.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.min.y, b.max.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.max.y, b.max.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.min.y, b.max.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.max.y, b.min.z)))
+                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.max.y, b.max.z)))
     }
 
     // The implementation of this function is derived from:

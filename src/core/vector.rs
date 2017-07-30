@@ -2,7 +2,7 @@ use core::math;
 
 use std::fmt;
 use std::fmt::Display;
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Sub, Mul, Div, Neg, Index, IndexMut};
 
 #[derive(Clone, Copy)]
 pub struct Vec {
@@ -281,5 +281,41 @@ impl<'a> Neg for &'a Vec {
     type Output = Vec;
     fn neg(self) -> Vec {
         Vec::new(-self.x, -self.y, -self.z)
+    }
+}
+
+impl Index<usize> for Vec {
+    type Output = f64;
+
+    fn index(&self, index: usize) -> &f64 {
+        if index == 0 {
+            &self.x
+        }
+        else if index == 1 {
+            &self.y
+        }
+        else if index == 2 {
+            &self.z
+        }
+        else {
+            panic!("Vec index out of bounds");
+        }
+    }
+}
+
+impl IndexMut<usize> for Vec {
+    fn index_mut(&mut self, index: usize) -> &mut f64 {
+        if index == 0 {
+            &mut self.x
+        }
+        else if index == 1 {
+            &mut self.y
+        }
+        else if index == 2 {
+            &mut self.z
+        }
+        else {
+            panic!("Vec index out of bounds");
+        }
     }
 }

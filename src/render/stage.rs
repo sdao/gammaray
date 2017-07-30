@@ -5,7 +5,7 @@ use core::Camera;
 use core::Ray;
 use core::Vec;
 
-use prim::Prim;
+use geom::Prim;
 
 use std;
 use rand;
@@ -40,10 +40,12 @@ impl StageHolder {
         let mut closest_dist = std::f64::MAX;
         let mut closest: Intersection = Intersection::no_hit();
         for prim in &self.prims {
-            let (dist, normal) = prim.intersect_world(&ray);
-            if dist != 0.0 && dist < closest_dist {
-                closest = Intersection::hit(dist, normal, prim);
-                closest_dist = dist;
+            for i in 0..prim.num_components() {
+                let (dist, normal) = prim.intersect_world(&ray, i);
+                if dist != 0.0 && dist < closest_dist {
+                    closest = Intersection::hit(dist, normal, prim);
+                    closest_dist = dist;
+                }
             }
         }
         closest
