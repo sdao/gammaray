@@ -283,7 +283,7 @@ impl Bvh {
             let linear_node = &mut nodes[linear_node_index];
             linear_node.bbox = build_node.bbox;
             linear_node.offset = second_child_offset;
-            linear_node.num_components = build_node.num_components;
+            linear_node.axis = build_node.split_axis;
             linear_node_index
         }
     }
