@@ -1,6 +1,7 @@
 use core::vector;
 
 use std;
+use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy)]
 pub struct BBox {
@@ -70,5 +71,29 @@ impl BBox {
     pub fn surface_area(&self) -> f64 {
         let d = self.diagonal();
         d.x * d.y * d.z
+    }
+}
+
+impl Index<bool> for BBox {
+    type Output = vector::Vec;
+
+    fn index(&self, index: bool) -> &vector::Vec {
+        if index {
+            &self.max
+        }
+        else {
+            &self.min
+        }
+    }
+}
+
+impl IndexMut<bool> for BBox {
+    fn index_mut(&mut self, index: bool) -> &mut vector::Vec {
+        if index {
+            &mut self.max
+        }
+        else {
+            &mut self.min
+        }
     }
 }

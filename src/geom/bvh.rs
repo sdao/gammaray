@@ -101,8 +101,35 @@ impl BvhLinearNode {
     }
 }
 
+pub enum Intersection<'a> {
+    Hit {
+        dist: f64,
+        normal: core::Vec,
+        prim: &'a Box<prim::Prim + Sync + Send>
+    },
+    NoHit
+}
+
+impl<'a> Intersection<'a> {
+    pub fn hit(dist: f64, normal: core::Vec, prim: &'a Box<prim::Prim + Sync + Send>)
+        -> Intersection<'a>
+    {
+        Intersection::Hit {
+            dist: dist,
+            normal: normal,
+            prim: prim
+        }
+    }
+
+    pub fn no_hit() -> Intersection<'a> {
+        Intersection::NoHit
+    }
+}
+
 pub struct Bvh {
-    prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>
+    prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>,
+    components: std::vec::Vec<(usize, usize)>,
+    nodes: BvhLinearNodeArena
 }
 
 impl Bvh {
@@ -261,7 +288,7 @@ impl Bvh {
         }
     }
 
-    pub fn build(prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>) -> () {
+    pub fn build(prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>) -> Bvh {
         // Initialize BvhComponentInfo by scanning all prims for components.
         let mut component_info = std::vec::Vec::<BvhComponentInfo>::new();
         for prim_index in 0..prims.len() {
@@ -285,5 +312,63 @@ impl Bvh {
         // Compute representation of depth-first traversal of BVH tree.
         let mut nodes = BvhLinearNodeArena::with_capacity(arena.len());
         Bvh::flatten_tree(&arena, &mut nodes, root);
+
+        Bvh {
+            prims: prims,
+            components: ordered_components,
+            nodes: nodes
+        }
+    }
+
+    pub fn intersect(&self, ray: &core::Ray) -> Intersection {
+        let mut closest_dist = std::f64::MAX;
+        let mut closest: Intersection = Intersection::no_hit();
+        let isect_data = ray.compute_intersection_data();
+
+        // Follow ray through BVH nodes to component intersections.
+        let mut current_node_index = 0;
+        let mut nodes_to_visit = Vec::<usize>::with_capacity(64);
+        loop {
+            let node = &self.nodes[current_node_index];
+
+            // Check ray against BVH node.
+            if ray.intersect_bbox(&node.bbox, closest_dist, &isect_data) {
+                if node.num_components > 0 {
+                    // Intersect ray with components in leaf.
+                    for i in node.offset..(node.offset + node.num_components) {
+                        let (prim_index, component_index) = self.components[i];
+                        let prim = &self.prims[prim_index];
+                        let (dist, normal) = prim.intersect_world(&ray, component_index);
+                        if dist != 0.0 && dist < closest_dist {
+                            closest = Intersection::hit(dist, normal, prim);
+                            closest_dist = dist;
+                        }
+                    }
+                    match nodes_to_visit.pop() {
+                        Some(i) => current_node_index = i,
+                        None => break
+                    }
+                }
+                else {
+                    // Put far BVH node on nodes_to_visit stack, advance to near node.
+                    if isect_data.dir_is_neg[node.axis] {
+                        nodes_to_visit.push(current_node_index + 1);
+                        current_node_index = node.offset;
+                    }
+                    else {
+                        nodes_to_visit.push(node.offset);
+                        current_node_index = current_node_index + 1;
+                    }
+                }
+            }
+            else {
+                match nodes_to_visit.pop() {
+                    Some(i) => current_node_index = i,
+                    None => break
+                }
+            }
+        }
+
+        closest
     }
 }
