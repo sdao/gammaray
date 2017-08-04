@@ -5,7 +5,7 @@ pub fn partition<T>(slice: &mut [T], predicate: &Fn(&T) -> bool) -> usize {
 
     let slice_len = slice.len();
     let mut cursor = 0;
-    for i in 0..(slice_len - 1) {
+    for i in 0..slice_len {
         if predicate(&slice[i]) {
             slice.swap(i, cursor);
             cursor += 1;

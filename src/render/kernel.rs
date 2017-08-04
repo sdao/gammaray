@@ -14,7 +14,14 @@ pub struct KernelResult {
 }
 
 pub trait Kernel {
-    // XXX: ray could just be direction here.
+    /// Computes an outgoing direction for the given incoming direction on the surface.
+    /// The depth is given as a hint, e.g. for Russian roulette.
+    /// The normal of the intersection and a reference to the prim are provided for material
+    /// computations.
+    /// The RNG should be re-used across bounces for performance reasons.
+    /// Note that the incoming direction and outgoing directions should be assumed to be
+    /// unit-length. Failure to maintain the unit-length invariant may cause rendering errors
+    /// in other parts of the pipeline that assume that rays are unit-length.
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
             prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult;
 }

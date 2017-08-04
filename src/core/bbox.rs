@@ -1,3 +1,4 @@
+use core::ray;
 use core::vector;
 
 use std;
@@ -71,6 +72,39 @@ impl BBox {
     pub fn surface_area(&self) -> f64 {
         let d = self.diagonal();
         d.x * d.y * d.z
+    }
+
+    pub fn intersect(&self, ray: &ray::Ray, data: &ray::RayIntersectionData, max_dist: f64)
+        -> bool
+    {
+        // Check for ray intersection against x and y slabs.
+        let mut t_min = (self[ data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
+        let mut t_max = (self[!data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
+        let ty_min =    (self[ data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
+        let ty_max =    (self[!data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
+
+        // XXX: May need to use PBRT gamma function to make more numerically stable.
+        if t_min > ty_max || ty_min > t_max {
+            return false;
+        }
+        if ty_min > t_min {
+            t_min = ty_min;
+        }
+        if ty_max < t_max {
+            t_max = ty_max;
+        }
+
+        // Check for ray intersection against z slab.
+        let tz_min = (self[ data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
+        let tz_max = (self[!data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
+
+        if t_min > tz_max || tz_min > t_max {
+            return false;
+        }
+        if tz_max < t_max {
+            t_max = tz_max;
+        }
+        return t_min < max_dist && t_max > 0.0;
     }
 }
 

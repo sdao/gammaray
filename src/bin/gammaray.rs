@@ -25,8 +25,20 @@ pub fn main() {
         core::Mat::translation(&core::Vec::new(6.0, -8.0, -100.0)),
         4.0);
 
-    let prims: Vec<Box<geom::Prim + Sync + Send>> = vec![
+    let mut prims: Vec<Box<geom::Prim + Sync + Send>> = vec![
             Box::new(s1), Box::new(s2), Box::new(s3), Box::new(s4)];
+    for i in 0..20usize {
+        prims.push(Box::new(geom::Sphere::new(
+            geom::Material::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
+            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f64, 12.0, -100.0)),
+            1.8)));
+    }
+    for i in 0..20usize {
+        prims.push(Box::new(geom::Sphere::new(
+            geom::Material::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
+            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f64, -12.0, -100.0)),
+            1.8)));
+    }
 
     let height: usize = 512;
     let width = (height as f64 * c.aspect_ratio()) as usize;

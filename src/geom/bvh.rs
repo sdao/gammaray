@@ -212,7 +212,7 @@ impl Bvh {
                             count1 += buckets[j].count;
                         }
 
-                        cost[i] = 0.125 + (count0 as f64 * b0.surface_area()
+                        cost[i] = 1.0 + (count0 as f64 * b0.surface_area()
                                 + count1 as f64 * b1.surface_area()) / bbox.surface_area();
                     }
 
@@ -250,6 +250,8 @@ impl Bvh {
                     }
                 }
 
+                debug_assert!(mid > 0);
+                debug_assert!(mid < num_components);
                 let c0 = Bvh::recurse_build(arena, &mut component_info[0..mid],
                         ordered_components);
                 let c1 = Bvh::recurse_build(arena, &mut component_info[mid..num_components],
@@ -299,7 +301,7 @@ impl Bvh {
                     component_index,
                     prim.bbox_world(component_index)));
             }
-        }
+        };
 
         // Build BVH tree for components from the BvhComponentInfo.
         // This will also create a lookup table of all components.
@@ -320,6 +322,10 @@ impl Bvh {
         }
     }
 
+    // Returns the intersection of the ray with the components included in this Bvh.
+    // NOTE: The ray should be unit-length to ensure that the right computation is provided,
+    // although non-unit-length should work in theory if all the shapes are returning
+    // parametric distances.
     pub fn intersect(&self, ray: &core::Ray) -> Intersection {
         let mut closest_dist = std::f64::MAX;
         let mut closest: Intersection = Intersection::no_hit();
@@ -332,7 +338,7 @@ impl Bvh {
             let node = &self.nodes[current_node_index];
 
             // Check ray against BVH node.
-            if ray.intersect_bbox(&node.bbox, closest_dist, &isect_data) {
+            if node.bbox.intersect(&ray, &isect_data, closest_dist) {
                 if node.num_components > 0 {
                     // Intersect ray with components in leaf.
                     for i in node.offset..(node.offset + node.num_components) {
