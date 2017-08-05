@@ -1,16 +1,17 @@
 use geom::prim;
 
 use core;
+use material;
 
 pub struct Sphere {
-    mat: prim::Material,
+    mat: material::Disney,
     radius: f64,
     xform: core::Mat,
     xform_inv: core::Mat,
 }
 
 impl Sphere {
-    pub fn new(material: prim::Material, xform: core::Mat, radius: f64) -> Sphere
+    pub fn new(material: material::Disney, xform: core::Mat, radius: f64) -> Sphere
     {
         let xf = xform;
         let inverted = xf.inverted();
@@ -25,10 +26,10 @@ impl Sphere {
 
 impl prim::Prim for Sphere {
     fn display_color(&self) -> &core::Vec {
-        &self.mat.albedo
+        &self.mat.base_color
     }
 
-    fn material(&self) -> &prim::Material {
+    fn material(&self) -> &material::Disney {
         &self.mat
     }
 

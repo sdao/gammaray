@@ -2,10 +2,9 @@ mod bvh;
 pub use geom::bvh::{Bvh, Intersection};
 
 mod prim;
-pub use geom::prim::{Material, Prim};
+pub use geom::prim::Prim;
 
 mod sphere;
 pub use geom::sphere::Sphere;
 
 mod util;
-pub use geom::util::*;

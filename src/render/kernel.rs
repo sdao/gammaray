@@ -2,7 +2,6 @@ use core;
 
 use geom;
 
-use std;
 use rand;
 use rand::distributions::IndependentSample;
 use rand::Rng;
@@ -84,15 +83,12 @@ impl Kernel for PathTracerKernel {
 
         // Check for scattering (reflection/transmission).
         let (tangent, binormal) = normal.coord_system();
-        // XXX let incoming_local = incoming_direction.world_to_local(&tangent, &binormal, &normal);
-        let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: false};
-        let outgoing_local = cosine_sample_hemis.ind_sample(rng);
-        let bsdf = &material.albedo * std::f64::consts::FRAC_1_PI;
-        let pdf = core::CosineSampleHemisphere::pdf(&outgoing_local);
-        let outgoing_world = outgoing_local.local_to_world(&tangent, &binormal, &normal);
+        let incoming_local = (-incoming_direction).world_to_local(&tangent, &binormal, &normal);
+        let sample = material.sample(&incoming_local, rng);
+        let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
 
         let light = material.incandescence.clone();
-        let mut throughput = &bsdf * (normal.dot(&outgoing_world).abs() / pdf);
+        let mut throughput = &sample.result * (normal.dot(&outgoing_world).abs() / sample.pdf);
         let mut dir = outgoing_world;
 
         // Do Russian Roulette if this path is "old".

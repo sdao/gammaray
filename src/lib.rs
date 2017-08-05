@@ -5,5 +5,6 @@ extern crate rand;
 extern crate rayon;
 pub mod core;
 pub mod geom;
+pub mod material;
 pub mod render;
 pub mod ui;

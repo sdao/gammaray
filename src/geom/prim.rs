@@ -1,22 +1,12 @@
 use core;
-
-pub struct Material {
-    pub albedo: core::Vec,
-    pub incandescence: core::Vec,
-}
-
-impl Material {
-    pub fn new(albedo: core::Vec, incandescence: core::Vec) -> Material {
-        Material {albedo: albedo, incandescence: incandescence}
-    }
-}
+use material;
 
 pub trait Prim {
     fn num_components(&self) -> usize {
         1
     }
     fn display_color(&self) -> &core::Vec;
-    fn material(&self) -> &Material;
+    fn material(&self) -> &material::Disney;
     fn local_to_world_xform(&self) -> &core::Mat;
     fn world_to_local_xform(&self) -> &core::Mat;
     fn bbox_local(&self, component: usize) -> core::BBox;

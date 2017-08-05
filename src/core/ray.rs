@@ -1,4 +1,3 @@
-use core::bbox;
 use core::vector;
 
 use std::fmt;
