@@ -103,7 +103,7 @@ impl BvhLinearNode {
 
 pub enum Intersection<'a> {
     Hit {
-        dist: f64,
+        dist: f32,
         normal: core::Vec,
         prim: &'a Box<prim::Prim + Sync + Send>
     },
@@ -111,7 +111,7 @@ pub enum Intersection<'a> {
 }
 
 impl<'a> Intersection<'a> {
-    pub fn hit(dist: f64, normal: core::Vec, prim: &'a Box<prim::Prim + Sync + Send>)
+    pub fn hit(dist: f32, normal: core::Vec, prim: &'a Box<prim::Prim + Sync + Send>)
         -> Intersection<'a>
     {
         Intersection::Hit {
@@ -187,7 +187,7 @@ impl Bvh {
                     for ci in &component_info[..] {
                         let rel = centroid_bbox.relative_offset(&ci.centroid);
                         let b = core::clamp(
-                                (NUM_BUCKETS as f64 * rel[dim]) as usize,
+                                (NUM_BUCKETS as f32 * rel[dim]) as usize,
                                 0, NUM_BUCKETS - 1);
                         buckets[b].count += 1;
                         buckets[b].bbox = buckets[b].bbox.combine_with(&ci.bbox);
@@ -212,8 +212,8 @@ impl Bvh {
                             count1 += buckets[j].count;
                         }
 
-                        cost[i] = 1.0 + (count0 as f64 * b0.surface_area()
-                                + count1 as f64 * b1.surface_area()) / bbox.surface_area();
+                        cost[i] = 1.0 + (count0 as f32 * b0.surface_area()
+                                + count1 as f32 * b1.surface_area()) / bbox.surface_area();
                     }
 
                     // Find bucket to split at that minimizes SAH metric.
@@ -228,7 +228,7 @@ impl Bvh {
 
                     // Either create leaf or split primitives at selected SAH bucket.
                     // (Leaf might be cheaper.)
-                    let leaf_cost = num_components as f64;
+                    let leaf_cost = num_components as f32;
 
                     const MAX_COMPONENTS_PER_NODE: usize = 255;
                     if num_components > MAX_COMPONENTS_PER_NODE || min_cost < leaf_cost {
@@ -236,7 +236,7 @@ impl Bvh {
                         mid = util::partition(component_info, &|ci| {
                             let rel = centroid_bbox.relative_offset(&ci.centroid);
                             let b = core::clamp(
-                                    (NUM_BUCKETS as f64 * rel[dim]) as usize,
+                                    (NUM_BUCKETS as f32 * rel[dim]) as usize,
                                     0, NUM_BUCKETS - 1);
                             b <= min_cost_split_bucket
                         });
@@ -327,7 +327,7 @@ impl Bvh {
     // although non-unit-length should work in theory if all the shapes are returning
     // parametric distances.
     pub fn intersect(&self, ray: &core::Ray) -> Intersection {
-        let mut closest_dist = std::f64::MAX;
+        let mut closest_dist = std::f32::MAX;
         let mut closest: Intersection = Intersection::no_hit();
         let isect_data = ray.compute_intersection_data();
 

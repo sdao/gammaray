@@ -13,8 +13,8 @@ pub struct BBox {
 impl BBox {
     pub fn empty() -> BBox {
         BBox {
-            min: vector::Vec::new(std::f64::MAX, std::f64::MAX, std::f64::MAX),
-            max: vector::Vec::new(std::f64::MIN, std::f64::MIN, std::f64::MIN)
+            min: vector::Vec::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
+            max: vector::Vec::new(std::f32::MIN, std::f32::MIN, std::f32::MIN)
         }
     }
 
@@ -25,22 +25,22 @@ impl BBox {
     pub fn union_with(&self, k: &vector::Vec) -> BBox {
         BBox {
             min: vector::Vec::new(
-                f64::min(self.min.x, k.x), f64::min(self.min.y, k.y), f64::min(self.min.z, k.z)),
+                f32::min(self.min.x, k.x), f32::min(self.min.y, k.y), f32::min(self.min.z, k.z)),
             max: vector::Vec::new(
-                f64::max(self.max.x, k.x), f64::max(self.max.y, k.y), f64::max(self.max.z, k.z))
+                f32::max(self.max.x, k.x), f32::max(self.max.y, k.y), f32::max(self.max.z, k.z))
         }
     }
 
     pub fn combine_with(&self, b: &BBox) -> BBox {
         BBox {
             min: vector::Vec::new(
-                f64::min(self.min.x, b.min.x),
-                f64::min(self.min.y, b.min.y),
-                f64::min(self.min.z, b.min.z)),
+                f32::min(self.min.x, b.min.x),
+                f32::min(self.min.y, b.min.y),
+                f32::min(self.min.z, b.min.z)),
             max: vector::Vec::new(
-                f64::max(self.max.x, b.max.x),
-                f64::max(self.max.y, b.max.y),
-                f64::max(self.max.z, b.max.z))
+                f32::max(self.max.x, b.max.x),
+                f32::max(self.max.y, b.max.y),
+                f32::max(self.max.z, b.max.z))
         }
     }
 
@@ -69,12 +69,12 @@ impl BBox {
         a.comp_div(&b)
     }
 
-    pub fn surface_area(&self) -> f64 {
+    pub fn surface_area(&self) -> f32 {
         let d = self.diagonal();
         d.x * d.y * d.z
     }
 
-    pub fn intersect(&self, ray: &ray::Ray, data: &ray::RayIntersectionData, max_dist: f64)
+    pub fn intersect(&self, ray: &ray::Ray, data: &ray::RayIntersectionData, max_dist: f32)
         -> bool
     {
         // Check for ray intersection against x and y slabs.

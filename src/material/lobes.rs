@@ -27,7 +27,7 @@ fn f_d(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
 fn f_lambert(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
     let f_in = util::schlick(i);
     let f_out = util::schlick(o);
-    &disney.base_color * (std::f64::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
+    &disney.base_color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
 }
 
 fn f_retro(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
@@ -36,12 +36,12 @@ fn f_retro(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
         return core::Vec::zero();
     }
 
-    let cos_theta_d = i.dot(&half.normalized()); // Note: could have used o here also.
+    let cos_theta_d = o.dot(&half.normalized()); // Note: could have used i here also.
     let r_r = 2.0 * disney.roughness * cos_theta_d * cos_theta_d;
 
     let f_in = util::schlick(i);
     let f_out = util::schlick(o);
 
-    &disney.base_color * (std::f64::consts::FRAC_1_PI * r_r
+    &disney.base_color * (std::f32::consts::FRAC_1_PI * r_r
             * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
 }

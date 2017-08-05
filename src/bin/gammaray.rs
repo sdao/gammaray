@@ -31,18 +31,18 @@ pub fn main() {
     for i in 0..20usize {
         prims.push(Box::new(geom::Sphere::new(
             material::Disney::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
-            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f64, 12.0, -100.0)),
+            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, 12.0, -100.0)),
             1.8)));
     }
     for i in 0..20usize {
         prims.push(Box::new(geom::Sphere::new(
             material::Disney::new(core::Vec::new(0.9, 0.1, 0.2), core::Vec::zero()),
-            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f64, -12.0, -100.0)),
+            core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, -12.0, -100.0)),
             1.8)));
     }
 
     let height: usize = 512;
-    let width = (height as f64 * c.aspect_ratio()) as usize;
+    let width = (height as f32 * c.aspect_ratio()) as usize;
     println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
 
     let mut stage = render::Stage::new(prims);
@@ -66,7 +66,7 @@ pub fn main() {
             }
 
             let duration = stop - start;
-            let secs = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+            let secs = duration.as_secs() as f32 + duration.subsec_nanos() as f32 * 1e-9;
             println!("Iteration {} [duration: {:.3} sec / {:.3} fps]",
                     iter_count, secs, 1.0 / secs);
 

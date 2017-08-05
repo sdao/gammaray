@@ -12,7 +12,7 @@ pub fn clamp<T>(x: T, a: T, b: T) -> T where T: PartialOrd {
     }
 }
 
-pub fn clamp_unit(x: f64) -> f64 {
+pub fn clamp_unit(x: f32) -> f32 {
     clamp(x, 0.0, 1.0)
 }
 
@@ -21,7 +21,7 @@ pub fn clamp_unit(x: f64) -> f64 {
  * where a = 1, y is returned. If a < 0 or a > 1, this function will
  * extrapolate.
  */
-pub fn lerp(x: f64, y: f64, a: f64) -> f64 {
+pub fn lerp(x: f32, y: f32, a: f32) -> f32 {
     x + a * (y - x)
 }
 
@@ -29,22 +29,22 @@ pub fn lerp(x: f64, y: f64, a: f64) -> f64 {
  * Linearly interpolates between x and y. Where a <= 0, x is returned, and
  * where a >= 1, y is returned. No extrapolation will occur.
  */
-pub fn clamped_lerp(x: f64, y: f64, a: f64) -> f64 {
+pub fn clamped_lerp(x: f32, y: f32, a: f32) -> f32 {
     lerp(x, y, clamp(a, 0.0, 1.0))
 }
 
 /**
  * Determines whether a number is zero, within a small epsilon.
  */
-pub fn is_nearly_zero(x: f64) -> bool {
-    f64::abs(x) < std::f64::EPSILON
+pub fn is_nearly_zero(x: f32) -> bool {
+    f32::abs(x) < std::f32::EPSILON
 }
 
 /**
  * Determines whether a number is positive, within a small epsilon.
  */
-pub fn is_positive(x: f64) -> bool {
-    x > std::f64::EPSILON
+pub fn is_positive(x: f32) -> bool {
+    x > std::f32::EPSILON
 }
 
 /**
@@ -65,8 +65,8 @@ pub fn is_positive(x: f64) -> bool {
  *              (A recommended default width is 2.0)
  * @returns the value of the filter
  */
-pub fn triangle_filter(x: f64, y: f64, width: f64) -> f64 {
-    f64::max(0.0, width - x.abs()) * f64::max(0.0, width - y.abs())
+pub fn triangle_filter(x: f32, y: f32, width: f32) -> f32 {
+    f32::max(0.0, width - x.abs()) * f32::max(0.0, width - y.abs())
 }
 
 /**
@@ -80,9 +80,9 @@ pub fn triangle_filter(x: f64, y: f64, width: f64) -> f64 {
  *
  * @param x the scaled x-offset from the pixel center, -1 <= x <= 1
  */
-pub fn mitchell_filter1(x: f64) -> f64 {
-    const B: f64 = 1.0 / 3.0;
-    const C: f64 = 1.0 / 3.0;
+pub fn mitchell_filter1(x: f32) -> f32 {
+    const B: f32 = 1.0 / 3.0;
+    const C: f32 = 1.0 / 3.0;
 
     let twox = (2.0 * x).abs(); // Convert to the range [0, 2].
 
@@ -109,7 +109,7 @@ pub fn mitchell_filter1(x: f64) -> f64 {
  *              (A recommended default width is 2.0)
  * @returns the value of the filter
  */
-pub fn mitchell_filter2(x: f64, y: f64, width: f64) -> f64 {
+pub fn mitchell_filter2(x: f32, y: f32, width: f32) -> f32 {
     mitchell_filter1(x / width) * mitchell_filter1(y / width)
 }
 
@@ -125,9 +125,9 @@ pub fn mitchell_filter2(x: f64, y: f64, width: f64) -> f64 {
  * @param gPdf probability according to the Pg distribution
  * @returns    the weight according to the power heuristic
  */
-pub fn power_heuristic(nf: u32, f_pdf: f64, ng: u32, g_pdf: f64) -> f64{
-    let f = (nf as f64) * f_pdf;
-    let g = (ng as f64) * g_pdf;
+pub fn power_heuristic(nf: u32, f_pdf: f32, ng: u32, g_pdf: f32) -> f32{
+    let f = (nf as f32) * f_pdf;
+    let g = (ng as f32) * g_pdf;
 
     (f * f) / (f * f + g * g)
 }

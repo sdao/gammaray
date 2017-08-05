@@ -7,26 +7,26 @@ use rand;
 pub struct BxdfSample {
     pub result: core::Vec,
     pub outgoing: core::Vec,
-    pub pdf: f64
+    pub pdf: f32
 }
 
 pub struct Disney {
     pub base_color: core::Vec,
     pub incandescence: core::Vec,
 
-    pub metallic: f64,
-    pub specular_tint: f64,
-    pub roughness: f64,
-    pub anisotropic: f64,
-    pub sheen: f64,
-    pub sheen_tint: f64,
-    pub clearcoat: f64,
-    pub clearcoat_gloss: f64,
+    pub metallic: f32,
+    pub specular_tint: f32,
+    pub roughness: f32,
+    pub anisotropic: f32,
+    pub sheen: f32,
+    pub sheen_tint: f32,
+    pub clearcoat: f32,
+    pub clearcoat_gloss: f32,
     pub scatter_distance: core::Vec,
-    pub ior: f64,
-    pub spec_trans: f64,
-    pub diff_trans: f64,
-    pub flatness:f64,
+    pub ior: f32,
+    pub spec_trans: f32,
+    pub diff_trans: f32,
+    pub flatness:f32,
 }
 
 impl Disney {

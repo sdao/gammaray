@@ -7,15 +7,15 @@ use rand::distributions::IndependentSample;
 use rand::distributions::range::Range;
 use rayon::prelude::*;
 
-const FILTER_WIDTH: f64 = 2.0;
+const FILTER_WIDTH: f32 = 2.0;
 
 #[derive(Clone)]
 pub struct FilmSample {
     pub color: core::Vec,
     // Column of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
-    pub s: f64,
+    pub s: f32,
     // Row of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
-    pub t: f64,
+    pub t: f32,
 }
 
 impl FilmSample {
@@ -27,7 +27,7 @@ impl FilmSample {
 #[derive(Clone, Copy)]
 pub struct FilmPixel {
     pub accum: core::Vec,
-    pub weight: f64
+    pub weight: f32
 }
 
 impl FilmPixel {
@@ -60,11 +60,11 @@ impl Film {
         samples.clear();
         samples.reserve_exact(self.width * self.height);
 
-        let (widthf, heightf) = (self.width as f64, self.height as f64);
+        let (widthf, heightf) = (self.width as f32, self.height as f32);
         for row_discr in 0..self.height {
-            let row_cont = 0.5 + row_discr as f64;
+            let row_cont = 0.5 + row_discr as f32;
             for col_discr in 0..self.width {
-                let col_cont = 0.5 + col_discr as f64;
+                let col_cont = 0.5 + col_discr as f32;
 
                 let row_cont_jitter = row_cont + filter_range.ind_sample(&mut thread_rng);
                 let col_cont_jitter = col_cont + filter_range.ind_sample(&mut thread_rng);
@@ -77,7 +77,7 @@ impl Film {
     }
 
     pub fn report_samples(&mut self, samples: &std::vec::Vec<FilmSample>) {
-        let (widthf, heightf) = (self.width as f64, self.height as f64);
+        let (widthf, heightf) = (self.width as f32, self.height as f32);
         for sample in samples {
             let col_cont = core::lerp(0.0, widthf, 0.5 * (sample.s + 1.0));
             let row_cont = core::lerp(0.0, heightf, 0.5 * (sample.t + 1.0));
@@ -96,8 +96,8 @@ impl Film {
                 for x in (min_col)..(max_col + 1) {
                     let mut pixel = &mut self.pixels[core::index(y, x, self.width)];
                     let weight = core::mitchell_filter2(
-                        x as f64 - col_discr,
-                        y as f64 - row_discr,
+                        x as f32 - col_discr,
+                        y as f32 - row_discr,
                         FILTER_WIDTH);
 
                     pixel.accum = &pixel.accum + &(&sample.color * weight);
