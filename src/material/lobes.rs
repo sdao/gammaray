@@ -1,4 +1,3 @@
-use material::disney;
 use material::util;
 
 use core;
@@ -7,41 +6,66 @@ use std;
 use rand;
 use rand::distributions::IndependentSample;
 
-pub fn sample_diffuse(disney: &disney::Disney, i: &core::Vec, rng: &mut rand::XorShiftRng)
-    -> disney::BxdfSample
-{
-    let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: i.z < 0.0};
-    let o = cosine_sample_hemis.ind_sample(rng);
-    let pdf = core::CosineSampleHemisphere::pdf(&o);
-    disney::BxdfSample {
-        result: f_d(disney, i, &o),
-        outgoing: o,
-        pdf: pdf
+pub struct LobeSample {
+    pub result: core::Vec,
+    pub outgoing: core::Vec,
+    pub pdf: f32
+}
+
+pub trait Lobe {
+    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
+    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+        if !i.is_local_same_hemisphere(o) {
+            0.0
+        }
+        else {
+            core::CosineSampleHemisphere::pdf(&o)
+        }
+    }
+    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+        let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: i.z < 0.0};
+        let o = cosine_sample_hemis.ind_sample(rng);
+        let result = self.f(i, &o);
+        let pdf = self.pdf(i, &o);
+        LobeSample {
+            result: result,
+            outgoing: o,
+            pdf: pdf
+        }
     }
 }
 
-fn f_d(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
-    &f_lambert(disney, i, o) + &f_retro(disney, i, o)
+pub struct DisneyDiffuse {
+    pub base_color: core::Vec,
+    pub roughness: f32
 }
 
-fn f_lambert(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
-    let f_in = util::schlick(i);
-    let f_out = util::schlick(o);
-    &disney.base_color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
+impl Lobe for DisneyDiffuse {
+    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        &self.f_lambert(i, o) + &self.f_retro(i, o)
+    }
 }
 
-fn f_retro(disney: &disney::Disney, i: &core::Vec, o: &core::Vec) -> core::Vec {
-    let half = i + o;
-    if half.is_exactly_zero() {
-        return core::Vec::zero();
+impl DisneyDiffuse {
+    fn f_lambert(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        let f_in = util::schlick(i);
+        let f_out = util::schlick(o);
+        &self.base_color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
     }
 
-    let cos_theta_d = o.dot(&half.normalized()); // Note: could have used i here also.
-    let r_r = 2.0 * disney.roughness * cos_theta_d * cos_theta_d;
+    fn f_retro(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        let half = i + o;
+        if half.is_exactly_zero() {
+            return core::Vec::zero();
+        }
 
-    let f_in = util::schlick(i);
-    let f_out = util::schlick(o);
+        let cos_theta_d = o.dot(&half.normalized()); // Note: could have used i here also.
+        let r_r = 2.0 * self.roughness * cos_theta_d * cos_theta_d;
 
-    &disney.base_color * (std::f32::consts::FRAC_1_PI * r_r
-            * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
+        let f_in = util::schlick(i);
+        let f_out = util::schlick(o);
+
+        &self.base_color * (std::f32::consts::FRAC_1_PI * r_r
+                * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
+    }
 }

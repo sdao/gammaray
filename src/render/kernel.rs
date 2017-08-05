@@ -87,7 +87,7 @@ impl Kernel for PathTracerKernel {
         let sample = material.sample(&incoming_local, rng);
         let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
 
-        let light = material.incandescence.clone();
+        let light = material.light();
         let mut throughput = &sample.result * (normal.dot(&outgoing_world).abs() / sample.pdf);
         let mut dir = outgoing_world;
 

@@ -26,7 +26,7 @@ impl Sphere {
 
 impl prim::Prim for Sphere {
     fn display_color(&self) -> &core::Vec {
-        &self.mat.base_color
+        &self.mat.display_color()
     }
 
     fn material(&self) -> &material::Disney {
