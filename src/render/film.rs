@@ -12,7 +12,8 @@ const FILTER_WIDTH: f32 = 2.0;
 #[derive(Clone)]
 pub struct FilmSample {
     pub color: core::Vec,
-    // Column of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
+    // Column of the sample, in lens space. Samples may extend beyond [-1, 1] depending on
+    // filtering.
     pub s: f32,
     // Row of the sample, in lens space. Samples may extend beyond [-1, 1] depending on filtering.
     pub t: f32,

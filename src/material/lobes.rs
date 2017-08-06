@@ -41,6 +41,7 @@ pub trait Lobe : Sync + Send {
         let o = cosine_sample_hemis.ind_sample(rng);
         let result = self.f(i, &o);
         let pdf = self.pdf(i, &o);
+
         LobeSample {
             result: result,
             outgoing: o,
@@ -59,7 +60,8 @@ pub struct DisneyDiffuse {
 
 impl Lobe for DisneyDiffuse {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
-        &self.f_lambert(i, o) + &self.f_retro(i, o)
+        // &self.f_lambert(i, o) + &self.f_retro(i, o)
+        &self.base_color * std::f32::consts::FRAC_1_PI
     }
 }
 

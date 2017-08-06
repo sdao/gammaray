@@ -27,43 +27,22 @@ impl Sample<(f32, f32)> for AreaSampleDisk {
 impl IndependentSample<(f32, f32)> for AreaSampleDisk {
     fn ind_sample<R>(&self, rng: &mut R) -> (f32, f32) where R: Rng {
         let range = Range::new(-1.0, 1.0);
-        let sx = range.ind_sample(rng);
-        let sy = range.ind_sample(rng);
+        let sx: f32 = range.ind_sample(rng);
+        let sy: f32 = range.ind_sample(rng);
 
         // Handle degeneracy at the origin.
         if sx == 0.0 && sy == 0.0 {
             (0.0, 0.0)
         }
         else {
-            let r: f32;
-            let theta: f32;
-            if sx >= -sy {
-                if sx > sy {
-                    // Region 1.
-                    r = sx;
-                    if sy > 0.0  {
-                        theta = sy / r;
-                    } else {
-                        theta = 8.0 + sy / r;
-                    }
-                } else {
-                    // Region 2.
-                    r = sy;
-                    theta = 2.0 - sx / r;
-                }
-            } else {
-                if sx <= sy {
-                    // Region 3.
-                    r = -sx;
-                    theta = 4.0 - sy / r;
-                } else {
-                    // Region 4.
-                    r = -sy;
-                    theta = 6.0 + sx / r;
-                }
+            let (r, theta) = if sx.abs() > sy.abs() {
+                (sx, std::f32::consts::FRAC_PI_4 * (sy / sx))
             }
-            let theta_pi4 = theta * std::f32::consts::FRAC_PI_4;
-            (r * theta_pi4.cos(), r * theta_pi4.sin())
+            else {
+                (sy, std::f32::consts::FRAC_PI_2 - std::f32::consts::FRAC_PI_4 * (sx / sy))
+            };
+
+            (r * theta.cos(), r * theta.sin())
         }
     }
 }

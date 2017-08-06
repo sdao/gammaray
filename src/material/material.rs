@@ -92,6 +92,15 @@ impl Material {
             }
         }
 
+        if sample.pdf == 0.0 {
+            sample.result = core::Vec::zero();
+            sample.pdf = 1.0;
+        }
+
+        debug_assert!(sample.result.is_finite());
+        debug_assert!(sample.pdf.is_finite());
+        debug_assert!(sample.pdf > 0.0);
+
         sample
     }
 
