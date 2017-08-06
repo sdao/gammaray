@@ -9,7 +9,7 @@ use rand::distributions::IndependentSample;
 pub struct LobeSample {
     pub result: core::Vec,
     pub outgoing: core::Vec,
-    pub pdf: f32
+    pub pdf: f64
 }
 
 bitflags! {
@@ -27,7 +27,7 @@ bitflags! {
 
 pub trait Lobe : Sync + Send {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
-    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f64 {
         if !i.is_local_same_hemisphere(o) {
             0.0
         }
@@ -55,13 +55,12 @@ pub trait Lobe : Sync + Send {
 
 pub struct DisneyDiffuse {
     pub base_color: core::Vec,
-    pub roughness: f32
+    pub roughness: f64
 }
 
 impl Lobe for DisneyDiffuse {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
-        // &self.f_lambert(i, o) + &self.f_retro(i, o)
-        &self.base_color * std::f32::consts::FRAC_1_PI
+        &self.f_lambert(i, o) + &self.f_retro(i, o)
     }
 }
 
@@ -69,7 +68,7 @@ impl DisneyDiffuse {
     fn f_lambert(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
         let f_in = util::schlick(i);
         let f_out = util::schlick(o);
-        &self.base_color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
+        &self.base_color * (std::f64::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
     }
 
     fn f_retro(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
@@ -84,7 +83,7 @@ impl DisneyDiffuse {
         let f_in = util::schlick(i);
         let f_out = util::schlick(o);
 
-        &self.base_color * (std::f32::consts::FRAC_1_PI * r_r
+        &self.base_color * (std::f64::consts::FRAC_1_PI * r_r
                 * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
     }
 }

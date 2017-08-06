@@ -6,13 +6,13 @@ use std::ops::{Add, Sub, Mul, Div, Neg, Index, IndexMut};
 
 #[derive(Clone, Copy)]
 pub struct Vec {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
 impl Vec {
-    pub fn new(x: f32, y: f32, z: f32) -> Vec {
+    pub fn new(x: f64, y: f64, z: f64) -> Vec {
         Vec {x: x, y: y, z: z}
     }
 
@@ -42,15 +42,15 @@ impl Vec {
             self.x * other.y - self.y * other.x)
     }
 
-    pub fn dot(&self, other: &Vec) -> f32 {
+    pub fn dot(&self, other: &Vec) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
     pub fn is_exactly_zero(&self) -> bool {
         self.x == 0.0 && self.y == 0.0 && self.z == 0.0
     }
-    pub fn magnitude(&self) -> f32 {
-        f32::sqrt(self.dot(self))
+    pub fn magnitude(&self) -> f64 {
+        f64::sqrt(self.dot(self))
     }
 
     pub fn normalized(&self) -> Vec {
@@ -72,13 +72,13 @@ impl Vec {
      */
     pub fn coord_system(&self) -> (Vec, Vec) {
         if &self.x.abs() > &self.y.abs() {
-            let inv_len = 1.0 / f32::sqrt(self.x * self.x + self.z * self.z);
+            let inv_len = 1.0 / f64::sqrt(self.x * self.x + self.z * self.z);
             let v2 = Self::new(-self.z * inv_len, 0.0, self.x * inv_len);
             let v3 = self.cross(&v2);
             (v2, v3)
         }
         else {
-            let inv_len = 1.0 / f32::sqrt(self.y * self.y + self.z * self.z);
+            let inv_len = 1.0 / f64::sqrt(self.y * self.y + self.z * self.z);
             let v2 = Self::new(0.0, self.z * inv_len, -self.y * inv_len);
             let v3 = self.cross(&v2);
             (v2, v3)
@@ -116,35 +116,35 @@ impl Vec {
      * Returns Cos[Theta] of a vector where Theta is the polar angle of the vector
      * in spherical coordinates.
      */
-    pub fn cos_theta(&self) -> f32 { self.z }
+    pub fn cos_theta(&self) -> f64 { self.z }
 
     /**
      * Returns Abs[Cos[Theta]] of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn abs_cos_theta(&self) -> f32 { self.z.abs() }
+    pub fn abs_cos_theta(&self) -> f64 { self.z.abs() }
 
     /**
      * Returns Sin[Theta]^2 of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn sin_theta2(&self) -> f32 {
-        f32::max(0.0, 1.0 - self.cos_theta() * self.cos_theta())
+    pub fn sin_theta2(&self) -> f64 {
+        f64::max(0.0, 1.0 - self.cos_theta() * self.cos_theta())
     }
 
     /**
      * Returns Sin[Theta] of a vector where Theta is the polar angle of the vector
      * in spherical coordinates.
      */
-    pub fn sin_theta(&self) -> f32 {
-        f32::sqrt(self.sin_theta2())
+    pub fn sin_theta(&self) -> f64 {
+        f64::sqrt(self.sin_theta2())
     }
 
     /**
      * Returns Cos[Phi] of a vector where Phi is the azimuthal angle of the vector
      * in spherical coordinates.
      */
-    pub fn cos_phi(&self) -> f32 {
+    pub fn cos_phi(&self) -> f64 {
         let sin_t = self.sin_theta();
         if sin_t == 0.0 {
             1.0
@@ -158,7 +158,7 @@ impl Vec {
      * Returns Sin[Phi] of a vector where Phi is the azimuthal angle of the vector
      * in spherical coordinates.
      */
-    pub fn sin_phi(&self) -> f32 {
+    pub fn sin_phi(&self) -> f64 {
         let sin_t = self.sin_theta();
         if sin_t == 0.0 {
             0.0
@@ -179,7 +179,7 @@ impl Vec {
     /**
      * Luminance of an RGB color stored in a vec.
      */
-    pub fn luminance(&self) -> f32 {
+    pub fn luminance(&self) -> f64 {
         0.21 * self.x + 0.71 * self.y + 0.08 * self.z
     }
 
@@ -210,7 +210,7 @@ impl Vec {
      * @param eta the ratio of the incoming IOR over the transmitting IOR
      * @returns   the outgoing refraction vector
      */
-    pub fn refract(&self, n: &Vec, eta: f32) -> Vec {
+    pub fn refract(&self, n: &Vec, eta: f64) -> Vec {
       let d = n.dot(self);
       let k = 1.0 - eta * eta * (1.0 - d * d);
       if k < 0.0 {
@@ -258,21 +258,21 @@ impl<'a, 'b> Sub<&'b Vec> for &'a Vec {
     }
 }
 
-impl<'a> Mul<f32> for &'a Vec {
+impl<'a> Mul<f64> for &'a Vec {
     type Output = Vec;
-    fn mul(self, _rhs: f32) -> Vec {
+    fn mul(self, _rhs: f64) -> Vec {
         Vec::new(self.x * _rhs, self.y * _rhs, self.z * _rhs)
     }
 }
 
-impl<'b> Mul<&'b Vec> for f32 {
+impl<'b> Mul<&'b Vec> for f64 {
     type Output = Vec;
     fn mul(self, _rhs: &'b Vec) -> Vec { _rhs * self }
 }
 
-impl<'a> Div<f32> for &'a Vec {
+impl<'a> Div<f64> for &'a Vec {
     type Output = Vec;
-    fn div(self, _rhs: f32) -> Vec {
+    fn div(self, _rhs: f64) -> Vec {
         Vec::new(self.x / _rhs, self.y / _rhs, self.z / _rhs)
     }
 }
@@ -285,9 +285,9 @@ impl<'a> Neg for &'a Vec {
 }
 
 impl Index<usize> for Vec {
-    type Output = f32;
+    type Output = f64;
 
-    fn index(&self, index: usize) -> &f32 {
+    fn index(&self, index: usize) -> &f64 {
         if index == 0 {
             &self.x
         }
@@ -304,7 +304,7 @@ impl Index<usize> for Vec {
 }
 
 impl IndexMut<usize> for Vec {
-    fn index_mut(&mut self, index: usize) -> &mut f32 {
+    fn index_mut(&mut self, index: usize) -> &mut f64 {
         if index == 0 {
             &mut self.x
         }

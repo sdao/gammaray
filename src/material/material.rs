@@ -12,19 +12,19 @@ pub struct Material {
     // pub base_color: core::Vec,
     // pub incandescence: core::Vec,
     //
-    // pub metallic: f32,
-    // pub specular_tint: f32,
-    // pub roughness: f32,
-    // pub anisotropic: f32,
-    // pub sheen: f32,
-    // pub sheen_tint: f32,
-    // pub clearcoat: f32,
-    // pub clearcoat_gloss: f32,
+    // pub metallic: f64,
+    // pub specular_tint: f64,
+    // pub roughness: f64,
+    // pub anisotropic: f64,
+    // pub sheen: f64,
+    // pub sheen_tint: f64,
+    // pub clearcoat: f64,
+    // pub clearcoat_gloss: f64,
     // pub scatter_distance: core::Vec,
-    // pub ior: f32,
-    // pub spec_trans: f32,
-    // pub diff_trans: f32,
-    // pub flatness:f32,
+    // pub ior: f64,
+    // pub spec_trans: f64,
+    // pub diff_trans: f64,
+    // pub flatness:f64,
     display: core::Vec,
     light: Box<lights::Light>,
     lobes: std::vec::Vec<Box<lobes::Lobe>>
@@ -76,7 +76,7 @@ impl Material {
                 }
             }
         }
-        sample.pdf /= self.lobes.len() as f32;
+        sample.pdf /= self.lobes.len() as f64;
 
         // Compute overall BSDF over all lobes (if the chosen lobe wasn't specular).
         if !lobe.kind().contains(lobes::LOBE_SPECULAR) {

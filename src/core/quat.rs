@@ -4,7 +4,7 @@ use std::ops::{Div, Mul, Neg};
 
 #[derive(Clone)]
 pub struct Quat {
-    pub real: f32,
+    pub real: f64,
     pub imaginary: vector::Vec,
 }
 
@@ -12,7 +12,7 @@ impl Quat {
     pub fn identity() -> Quat {
         Quat {real: 1.0, imaginary: vector::Vec::zero()}
     }
-    pub fn length_squared(&self) -> f32 {
+    pub fn length_squared(&self) -> f64 {
         self.real * self.real + self.imaginary.dot(&self.imaginary)
     }
 }
@@ -30,7 +30,7 @@ impl Neg for Quat {
 impl Mul for Quat {
     type Output = Quat;
     fn mul(mut self, _rhs: Quat) -> Quat {
-        let r: f32;
+        let r: f64;
         let i: vector::Vec;
         {
             let r1 = self.real;
@@ -52,18 +52,18 @@ impl Mul for Quat {
     }
 }
 
-impl Mul<f32> for Quat {
+impl Mul<f64> for Quat {
     type Output = Quat;
-    fn mul(mut self, _rhs: f32) -> Quat {
+    fn mul(mut self, _rhs: f64) -> Quat {
         self.real = self.real * _rhs;
         self.imaginary = &self.imaginary * _rhs;
         self
     }
 }
 
-impl Div<f32> for Quat {
+impl Div<f64> for Quat {
     type Output = Quat;
-    fn div(mut self, _rhs: f32) -> Quat {
+    fn div(mut self, _rhs: f64) -> Quat {
         self.real = self.real / _rhs;
         self.imaginary = &self.imaginary / _rhs;
         self

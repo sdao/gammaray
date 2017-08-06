@@ -7,7 +7,7 @@ use rand::distributions::normal::StandardNormal;
 use rand::distributions::range::Range;
 
 /** The number of steradians in a sphere (4 * Pi). */
-const STERADIANS_PER_SPHERE: f32 = std::f32::consts::PI * 4.0;
+const STERADIANS_PER_SPHERE: f64 = std::f64::consts::PI * 4.0;
 
 /**
  * Samples a unit disk, ensuring that the samples are uniformally distributed
@@ -18,17 +18,17 @@ const STERADIANS_PER_SPHERE: f32 = std::f32::consts::PI * 4.0;
 pub struct AreaSampleDisk {
 }
 
-impl Sample<(f32, f32)> for AreaSampleDisk {
-    fn sample<R>(&mut self, rng: &mut R) -> (f32, f32) where R: Rng {
+impl Sample<(f64, f64)> for AreaSampleDisk {
+    fn sample<R>(&mut self, rng: &mut R) -> (f64, f64) where R: Rng {
         self.ind_sample(rng)
     }
 }
 
-impl IndependentSample<(f32, f32)> for AreaSampleDisk {
-    fn ind_sample<R>(&self, rng: &mut R) -> (f32, f32) where R: Rng {
+impl IndependentSample<(f64, f64)> for AreaSampleDisk {
+    fn ind_sample<R>(&self, rng: &mut R) -> (f64, f64) where R: Rng {
         let range = Range::new(-1.0, 1.0);
-        let sx: f32 = range.ind_sample(rng);
-        let sy: f32 = range.ind_sample(rng);
+        let sx: f64 = range.ind_sample(rng);
+        let sy: f64 = range.ind_sample(rng);
 
         // Handle degeneracy at the origin.
         if sx == 0.0 && sy == 0.0 {
@@ -36,10 +36,10 @@ impl IndependentSample<(f32, f32)> for AreaSampleDisk {
         }
         else {
             let (r, theta) = if sx.abs() > sy.abs() {
-                (sx, std::f32::consts::FRAC_PI_4 * (sy / sx))
+                (sx, std::f64::consts::FRAC_PI_4 * (sy / sx))
             }
             else {
-                (sy, std::f32::consts::FRAC_PI_2 - std::f32::consts::FRAC_PI_4 * (sx / sy))
+                (sy, std::f64::consts::FRAC_PI_2 - std::f64::consts::FRAC_PI_4 * (sx / sy))
             };
 
             (r * theta.cos(), r * theta.sin())
@@ -69,8 +69,8 @@ impl CosineSampleHemisphere {
      * hemisphere using a cosine-weighted distribution. (It does not matter
      * whether the hemisphere is on the positive or negative Z-axis.)
      */
-    pub fn pdf(direction: &vector::Vec) -> f32 {
-        direction.abs_cos_theta() * std::f32::consts::FRAC_1_PI
+    pub fn pdf(direction: &vector::Vec) -> f64 {
+        direction.abs_cos_theta() * std::f64::consts::FRAC_1_PI
     }
 }
 
@@ -84,7 +84,7 @@ impl IndependentSample<vector::Vec> for CosineSampleHemisphere {
     fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         const AREA_SAMPLE_DISK: AreaSampleDisk = AreaSampleDisk {};
         let (x, y) = AREA_SAMPLE_DISK.ind_sample(rng);
-        let z = f32::max(0.0, 1.0 - x * x - y * y);
+        let z = f64::max(0.0, 1.0 - x * x - y * y);
 
         if self.flipped {
             vector::Vec::new(x, y, -1.0 * z)
@@ -107,7 +107,7 @@ impl UniformSampleSphere {
      * Returns the probability that any solid angle was sampled uniformly
      * from a unit sphere.
      */
-    pub fn pdf() -> f32 {
+    pub fn pdf() -> f64 {
         1.0 / STERADIANS_PER_SPHERE
     }
 }
@@ -123,15 +123,15 @@ impl IndependentSample<vector::Vec> for UniformSampleSphere {
         // See MathWorld <http://mathworld.wolfram.com/SpherePointPicking.html>.
         let x = {
             let StandardNormal(x) = rng.gen();
-            x as f32
+            x as f64
         };
         let y = {
             let StandardNormal(y) = rng.gen();
-            y as f32
+            y as f64
         };
         let z = {
             let StandardNormal(z) = rng.gen();
-            z as f32
+            z as f64
         };
         let a = 1.0 / (x * x + y * y + z * z).sqrt();
 
@@ -160,7 +160,7 @@ impl IndependentSample<vector::Vec> for UniformSampleSphere {
  *                   and Pi/2 and in radians
  */
 pub struct UniformSampleCone {
-    half_angle: f32
+    half_angle: f64
 }
 
 impl UniformSampleCone {
@@ -172,8 +172,8 @@ impl UniformSampleCone {
      * @param halfAngle the half-angle of the cone
      * @returns         the probability that the angle was sampled
      */
-    pub fn pdf_internal(half_angle: f32) -> f32 {
-        let solid_angle = std::f32::consts::PI * 2.0 * (1.0 - half_angle.cos());
+    pub fn pdf_internal(half_angle: f64) -> f64 {
+        let solid_angle = std::f64::consts::PI * 2.0 * (1.0 - half_angle.cos());
         1.0 / solid_angle
     }
 
@@ -187,9 +187,9 @@ impl UniformSampleCone {
      * @param direction the direction of the sampled vector
      * @returns         the probability that the angle was sampled
      */
-    pub fn pdf(half_angle: f32, direction: &vector::Vec) -> f32{
+    pub fn pdf(half_angle: f64, direction: &vector::Vec) -> f64{
       let cos_half_angle = half_angle.cos();
-      let solid_angle = std::f32::consts::PI * 2.0 * (1.0 - cos_half_angle);
+      let solid_angle = std::f64::consts::PI * 2.0 * (1.0 - cos_half_angle);
       if direction.cos_theta() > cos_half_angle {
           // Within the sampling cone.
           1.0 / solid_angle
@@ -210,7 +210,7 @@ impl IndependentSample<vector::Vec> for UniformSampleCone {
     fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         let h = self.half_angle.cos();
         let z = Range::new(h, 1.0).ind_sample(rng);
-        let t = Range::new(0.0, std::f32::consts::PI * 2.0).ind_sample(rng);
+        let t = Range::new(0.0, std::f64::consts::PI * 2.0).ind_sample(rng);
         let r = (1.0 - (z * z)).sqrt();
         let x = r * t.cos();
         let y = r * t.sin();
