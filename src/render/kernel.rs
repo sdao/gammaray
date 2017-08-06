@@ -12,7 +12,7 @@ pub struct KernelResult {
     pub direction: core::Vec,
 }
 
-pub trait Kernel {
+pub trait Kernel : Sync + Send {
     /// Computes an outgoing direction for the given incoming direction on the surface.
     /// The depth is given as a hint, e.g. for Russian roulette.
     /// The normal of the intersection and a reference to the prim are provided for material
@@ -22,9 +22,10 @@ pub trait Kernel {
     /// unit-length. Failure to maintain the unit-length invariant may cause rendering errors
     /// in other parts of the pipeline that assume that rays are unit-length.
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-            prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult;
+            prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult;
 }
 
+/// This is a kernel used for debugging; it shows the display colors.
 pub struct DisplayColorKernel {
     pub max_depth: usize,
 }
@@ -40,7 +41,7 @@ impl DisplayColorKernel {
 
 impl Kernel for DisplayColorKernel {
     fn bounce(&self, depth: usize, _: &core::Vec, normal: &core::Vec,
-        prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng) -> KernelResult
+        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult
     {
         if depth == self.max_depth {
             KernelResult {
@@ -76,7 +77,7 @@ const RUSSIAN_ROULETTE_DEPTH: usize = 10;
 
 impl Kernel for PathTracerKernel {
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-        prim: &Box<geom::Prim + Sync + Send>, rng: &mut rand::XorShiftRng)
+        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng)
         -> KernelResult
     {
         let material = prim.material();
@@ -87,7 +88,7 @@ impl Kernel for PathTracerKernel {
         let sample = material.sample(&incoming_local, rng);
         let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
 
-        let light = material.light();
+        let light = material.light(&incoming_local);
         let mut throughput = &sample.result * (normal.dot(&outgoing_world).abs() / sample.pdf);
         let mut dir = outgoing_world;
 

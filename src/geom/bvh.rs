@@ -105,13 +105,13 @@ pub enum Intersection<'a> {
     Hit {
         dist: f32,
         normal: core::Vec,
-        prim: &'a Box<prim::Prim + Sync + Send>
+        prim: &'a Box<prim::Prim>
     },
     NoHit
 }
 
 impl<'a> Intersection<'a> {
-    pub fn hit(dist: f32, normal: core::Vec, prim: &'a Box<prim::Prim + Sync + Send>)
+    pub fn hit(dist: f32, normal: core::Vec, prim: &'a Box<prim::Prim>)
         -> Intersection<'a>
     {
         Intersection::Hit {
@@ -127,7 +127,7 @@ impl<'a> Intersection<'a> {
 }
 
 pub struct Bvh {
-    prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>,
+    prims: std::vec::Vec<Box<prim::Prim>>,
     components: std::vec::Vec<(usize, usize)>,
     nodes: BvhLinearNodeArena
 }
@@ -290,7 +290,7 @@ impl Bvh {
         }
     }
 
-    pub fn build(prims: std::vec::Vec<Box<prim::Prim + Sync + Send>>) -> Bvh {
+    pub fn build(prims: std::vec::Vec<Box<prim::Prim>>) -> Bvh {
         // Initialize BvhComponentInfo by scanning all prims for components.
         let mut component_info = std::vec::Vec::<BvhComponentInfo>::new();
         for prim_index in 0..prims.len() {

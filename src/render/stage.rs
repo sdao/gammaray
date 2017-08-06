@@ -20,7 +20,7 @@ pub struct Stage {
 }
 
 impl Stage {
-    pub fn new(prims: std::vec::Vec<Box<Prim + Sync + Send>>) -> Stage {
+    pub fn new(prims: std::vec::Vec<Box<Prim>>) -> Stage {
         Stage {
             bvh: Bvh::build(prims),
             sample_storage: vec![]
@@ -65,7 +65,7 @@ impl Stage {
 
     pub fn trace(&mut self,
         camera: &Camera,
-        kernel: &(kernel::Kernel + Sync + Send),
+        kernel: &(kernel::Kernel ),
         film: &mut film::Film)
     {
         film.compute_sample_points(&mut self.sample_storage);

@@ -4,14 +4,14 @@ use core;
 use material;
 
 pub struct Sphere {
-    mat: material::Disney,
+    mat: material::Material,
     radius: f32,
     xform: core::Mat,
     xform_inv: core::Mat,
 }
 
 impl Sphere {
-    pub fn new(material: material::Disney, xform: core::Mat, radius: f32) -> Sphere
+    pub fn new(material: material::Material, xform: core::Mat, radius: f32) -> Sphere
     {
         let xf = xform;
         let inverted = xf.inverted();
@@ -29,7 +29,7 @@ impl prim::Prim for Sphere {
         &self.mat.display_color()
     }
 
-    fn material(&self) -> &material::Disney {
+    fn material(&self) -> &material::Material {
         &self.mat
     }
 
@@ -61,7 +61,6 @@ impl prim::Prim for Sphere {
         let discriminant = (b * b) - (a * c);
 
         if discriminant > 0.0 {
-            let inside = c < 0.0;
             let sqrt_discriminant = discriminant.sqrt();
             // Quadratic has at most 2 results.
             let res_pos = -b + sqrt_discriminant;
@@ -70,23 +69,13 @@ impl prim::Prim for Sphere {
             // Neg before pos because we want to return closest isect first.
             if core::is_positive(res_neg) {
                 let pt = ray.at(res_neg);
-                let normal = if inside {
-                    -&pt
-                }
-                else {
-                    pt
-                }.normalized();
+                let normal = pt.normalized();
 
                 return (res_neg, normal)
             }
             else if core::is_positive(res_pos) {
                 let pt = ray.at(res_pos);
-                let normal = if inside {
-                    -&pt
-                }
-                else {
-                    pt
-                }.normalized();
+                let normal = pt.normalized();
 
                 return (res_pos, normal)
             }

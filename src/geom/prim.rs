@@ -1,12 +1,12 @@
 use core;
 use material;
 
-pub trait Prim {
+pub trait Prim : Sync + Send {
     fn num_components(&self) -> usize {
         1
     }
     fn display_color(&self) -> &core::Vec;
-    fn material(&self) -> &material::Disney;
+    fn material(&self) -> &material::Material;
     fn local_to_world_xform(&self) -> &core::Mat;
     fn world_to_local_xform(&self) -> &core::Mat;
     fn bbox_local(&self, component: usize) -> core::BBox;

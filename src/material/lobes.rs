@@ -12,7 +12,20 @@ pub struct LobeSample {
     pub pdf: f32
 }
 
-pub trait Lobe {
+bitflags! {
+    pub struct LobeKind: u32 {
+        /// PDF is non-delta-distributed.
+        const LOBE_DIFFUSE      = 0b00000001;
+        /// PDF is delta-distributed.
+        const LOBE_SPECULAR     = 0b00000010;
+        /// Out direction is same hemisphere as in direction.
+        const LOBE_REFLECTION   = 0b00000100;
+        /// Out and in direction are different hemispheres.
+        const LOBE_TRANSMISSION = 0b00001000;
+    }
+}
+
+pub trait Lobe : Sync + Send {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
     fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
         if !i.is_local_same_hemisphere(o) {
@@ -23,6 +36,7 @@ pub trait Lobe {
         }
     }
     fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+        // Take a sample direction on the same side of the normal as the incoming direction.
         let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: i.z < 0.0};
         let o = cosine_sample_hemis.ind_sample(rng);
         let result = self.f(i, &o);
@@ -32,6 +46,9 @@ pub trait Lobe {
             outgoing: o,
             pdf: pdf
         }
+    }
+    fn kind(&self) -> LobeKind {
+        LOBE_DIFFUSE | LOBE_REFLECTION
     }
 }
 

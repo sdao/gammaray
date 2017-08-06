@@ -1,7 +1,8 @@
-mod disney;
-pub use material::disney::Disney;
+mod lights;
 
 mod lobes;
-pub use material::lobes::{Lobe, LobeSample};
+
+mod material;
+pub use material::material::Material;
 
 mod util;
