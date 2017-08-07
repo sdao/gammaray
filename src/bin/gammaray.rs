@@ -3,9 +3,9 @@ use gammaray::core;
 use gammaray::geom;
 use gammaray::material;
 use gammaray::render;
-use gammaray::ui;
 
 use std::thread;
+use std::time;
 
 pub fn main() {
     let c = core::Camera::default();
@@ -49,20 +49,17 @@ pub fn main() {
     let kernel = render::PathTracerKernel::new();
 
     let mut film = render::Film::new(width, height);
-    let shared_data = ui::SharedData::new(width, height);
-    let thread_shared_data = shared_data.clone();
+    let mut writer = render::ExrWriter { buffer: vec![] };
     thread::spawn(move || {
-        let mut iter_count = 1usize;
+        let mut iter_count = 0usize;
         loop {
             let start = std::time::Instant::now();
             stage.trace(&c, &kernel, &mut film);
             let stop = std::time::Instant::now();
 
-            match thread_shared_data.store() {
-                Some(guard) => {
-                    film.write_to_rgba8(&mut guard.get());
-                },
-                None => {}
+            if iter_count % 4 == 0 {
+                writer.store(&film);
+                writer.write("output.exr");
             }
 
             let duration = stop - start;
@@ -74,5 +71,7 @@ pub fn main() {
         }
     });
 
-    ui::image_preview_window(shared_data);
+    loop {
+        thread::sleep(time::Duration::from_millis(1000));
+    }
 }

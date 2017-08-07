@@ -1,3 +1,4 @@
+use core::math;
 use core::ray;
 use core::vector;
 
@@ -78,12 +79,14 @@ impl BBox {
         -> bool
     {
         // Check for ray intersection against x and y slabs.
-        let mut t_min = (self[ data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
-        let mut t_max = (self[!data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
-        let ty_min =    (self[ data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
-        let ty_max =    (self[!data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
+        let mut t_min =  (self[ data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
+        let mut t_max =  (self[!data.dir_is_neg[0]].x - ray.origin.x) * data.inv_dir.x;
+        let ty_min =     (self[ data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
+        let mut ty_max = (self[!data.dir_is_neg[1]].y - ray.origin.y) * data.inv_dir.y;
 
-        // XXX: May need to use PBRT gamma function to make more numerically stable.
+        // Use PBRT gamma function to make more numerically stable.
+        t_max *= 1.0 + 2.0 * math::gamma(3.0);
+        ty_max *= 1.0 + 2.0 * math::gamma(3.0);
         if t_min > ty_max || ty_min > t_max {
             return false;
         }
@@ -95,9 +98,11 @@ impl BBox {
         }
 
         // Check for ray intersection against z slab.
-        let tz_min = (self[ data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
-        let tz_max = (self[!data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
+        let tz_min =     (self[ data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
+        let mut tz_max = (self[!data.dir_is_neg[2]].z - ray.origin.z) * data.inv_dir.z;
 
+        // Use PBRT gamma function to make more numerically stable.
+        tz_max *= 1.0 + 2.0 * math::gamma(3.0);
         if t_min > tz_max || tz_min > t_max {
             return false;
         }

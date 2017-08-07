@@ -51,7 +51,8 @@ impl Material {
             display: base_color,
             light: Box::new(lights::DiffuseAreaLight {color: incandescence}),
             lobes: vec![
-                Box::new(lobes::DisneyDiffuse {base_color: base_color, roughness: 1.0}),
+                Box::new(lobes::DisneyDiffuseRefl {color: base_color}),
+                Box::new(lobes::DisneyRetroRefl {color: base_color, roughness: 1.0}),
             ]
         }
     }
@@ -82,6 +83,7 @@ impl Material {
         if !lobe.kind().contains(lobes::LOBE_SPECULAR) {
             // XXX: reflect should actually be based on geom normal, not shading normal.
             // Need to introduce concept of geom vs shading normals.
+            // Doesn't matter at this point because we just have spheres.
             let reflect = i.is_local_same_hemisphere(&sample.outgoing);
             for idx in 0..self.lobes.len() {
                 if idx != r &&

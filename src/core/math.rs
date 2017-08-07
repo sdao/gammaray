@@ -139,3 +139,7 @@ pub fn row_col(index: usize, width: usize) -> (usize, usize) {
 pub fn index(row: usize, col: usize, width: usize) -> usize {
     row * width + col
 }
+
+pub fn gamma(n: f64) -> f64 {
+    (n * std::f64::EPSILON) / (1.0 - (n * std::f64::EPSILON))
+}

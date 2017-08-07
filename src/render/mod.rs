@@ -1,3 +1,6 @@
+mod exr;
+pub use render::exr::ExrWriter;
+
 mod film;
 pub use render::film::{FilmSample, FilmPixel, Film};
 
