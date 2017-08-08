@@ -322,6 +322,23 @@ impl Bvh {
         }
     }
 
+    /// Naive intersection for debugging purposes.
+    pub fn intersect_naive(&self, ray: &core::Ray) -> Intersection {
+        let mut closest_dist = std::f64::MAX;
+        let mut closest: Intersection = Intersection::no_hit();
+        for prim in &self.prims {
+            for i in 0..prim.num_components() {
+                let (dist, normal) = prim.intersect_world(&ray, i);
+                if dist != 0.0 && dist < closest_dist {
+                    closest = Intersection::hit(dist, normal, &prim);
+                    closest_dist = dist;
+                }
+            }
+        }
+
+        closest
+    }
+
     // Returns the intersection of the ray with the components included in this Bvh.
     // NOTE: The ray should be unit-length to ensure that the right computation is provided,
     // although non-unit-length should work in theory if all the shapes are returning
