@@ -5,7 +5,6 @@ use std::cmp;
 use rand;
 use rand::distributions::IndependentSample;
 use rand::distributions::range::Range;
-use rayon::prelude::*;
 
 const FILTER_WIDTH: f64 = 2.0;
 
@@ -86,8 +85,8 @@ impl Film {
             let row_discr = row_cont - 0.5;
 
             // Note: the min values must be casted to isize first because they may contain negative
-            // values. The max values can be casted to usize first because we don't have to deal with
-            // negatives.
+            // values. The max values can be casted to usize first because we don't have to deal
+            // with negatives.
             let min_col = cmp::max((col_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
             let max_col = cmp::min((col_discr + FILTER_WIDTH).floor() as usize, self.width - 1);
             let min_row = cmp::max((row_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
@@ -97,23 +96,14 @@ impl Film {
                 for x in (min_col)..(max_col + 1) {
                     let mut pixel = &mut self.pixels[core::index(y, x, self.width)];
                     let weight = core::mitchell_filter2(
-                        x as f64 - col_discr,
-                        y as f64 - row_discr,
-                        FILTER_WIDTH);
+                            x as f64 - col_discr,
+                            y as f64 - row_discr,
+                            FILTER_WIDTH);
 
                     pixel.accum = &pixel.accum + &(&sample.color * weight);
                     pixel.weight += weight;
                 }
             }
         }
-    }
-
-    pub fn write_to_rgba8(&mut self, rgba8: &mut std::vec::Vec<[u8; 4]>) {
-        assert!(self.pixels.len() == rgba8.len());
-
-        rgba8.par_iter_mut().enumerate().for_each(|(i, rgba8_pixel)| {
-            let val = (&self.pixels[i].accum / self.pixels[i].weight).to_rgba8();
-            rgba8_pixel.copy_from_slice(&val);
-        });
     }
 }

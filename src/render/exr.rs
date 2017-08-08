@@ -1,10 +1,14 @@
 use render::film;
 
+use core;
+
 use std;
+use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::fs::File;
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use rayon::prelude::*;
 
 const MAGIC_NUMBER: i32 = 20000630;
 const VERSION: i32 = 2;
@@ -13,10 +17,24 @@ const COMPRESSION_NONE: u8 = 0;
 const LINE_ORDER_INCREASING_Y: u8 = 0;
 
 pub struct ExrWriter {
-    pub buffer: std::vec::Vec<u8>
+    buffer: std::vec::Vec<u8>,
+    width: usize,
+    height: usize,
+    data_offset: usize,
+    file: File
 }
 
 impl ExrWriter {
+    pub fn new<P: AsRef<Path>>(path: P) -> ExrWriter {
+        ExrWriter {
+            buffer: vec![],
+            width: 0,
+            height: 0,
+            data_offset: 0,
+            file: File::create(path).unwrap()
+        }
+    }
+
     fn write_header(&mut self) {
         self.buffer.write_i32::<LittleEndian>(MAGIC_NUMBER).unwrap();
         self.buffer.write_i32::<LittleEndian>(VERSION).unwrap();
@@ -103,14 +121,14 @@ impl ExrWriter {
     }
 
     fn write_line_offset_table(&mut self, film: &film::Film) {
-        let size_of_table = 8 * film.height; // 1 ulong (8 bytes) per line.
-        let data_offset = self.buffer.len() + size_of_table;
-        let line_header_size = 4 + 4; // Scan line number (int) and bytes in line (uint).
-        let line_data_size = film.width * 4 * 3; // 1 float (4 bytes) for 3 channels per pixel.
-        let line_full_size = line_header_size + line_data_size;
+        let table_size = 8 * film.height; // 1 ulong (8 bytes) per line.
+        let data_offset = self.buffer.len() + table_size;
+
+        // Scan line number (int); bytes in line (uint); RGB (3 floats * 4 bytes) per pixel.
+        let line_size = 4 + 4 + (film.width * 4 * 3);
 
         for y in 0..film.height {
-            let line_offset = data_offset + y * line_full_size;
+            let line_offset = data_offset + y * line_size;
             self.buffer.write_u64::<LittleEndian>(line_offset as u64).unwrap();
         }
 
@@ -118,57 +136,65 @@ impl ExrWriter {
     }
 
     fn write_channels(&mut self, film: &film::Film) {
-        let line_data_size = film.width * 4 * 3; // 1 float (4 bytes) for 3 channels per pixel.
+        // Scan line number (int); bytes in line (uint); RGB (3 floats * 4 bytes) per pixel.
+        let line_size = 4 + 4 + (film.width * 4 * 3);
+        let data_size = film.height * line_size;
 
-        // For each line in the image...
-        let mut i = (film.pixels.len() - film.width) as isize;
-        let mut line = 0i32;
-        while i >= 0 {
-            self.buffer.write_i32::<LittleEndian>(line).unwrap(); // Scan line number
-            self.buffer.write_u32::<LittleEndian>(line_data_size as u32).unwrap(); // Bytes in line
+        self.buffer.resize(self.data_offset + data_size, 0);
+        let mut data = &mut self.buffer[self.data_offset..(self.data_offset + data_size)];
 
-            let len_before = self.buffer.len();
+        data.par_chunks_mut(line_size).enumerate().for_each(|(y, line)| {
+            LittleEndian::write_i32(&mut line[0..4], y as i32); // Scan line number.
+            LittleEndian::write_u32(&mut line[4..8], line_size as u32 - 8); // Bytes in line.
 
-            // For each channel in BGR order...
-            for channel in [2, 1, 0usize].iter() {
-                // Write channel value for all pixels in line.
-                for j in i..(i + film.width as isize) {
-                    let pixel = &film.pixels[j as usize];
-                    let val = &pixel.accum / pixel.weight;
-                    self.buffer.write_f32::<LittleEndian>(val[*channel] as f32).unwrap();
-                }
+            let first_pixel = core::index(film.height - y - 1, 0, film.width);
+            for i in 0..film.width {
+                let pixel = &film.pixels[first_pixel + i];
+                let val = [
+                    (pixel.accum.x / pixel.weight) as f32,
+                    (pixel.accum.y / pixel.weight) as f32,
+                    (pixel.accum.z / pixel.weight) as f32,
+                ];
+                let z = 8 + (0 * film.width + i) * 4;
+                let y = 8 + (1 * film.width + i) * 4;
+                let x = 8 + (2 * film.width + i) * 4;
+                LittleEndian::write_f32(&mut line[z..(z + 4)], val[2]);
+                LittleEndian::write_f32(&mut line[y..(y + 4)], val[1]);
+                LittleEndian::write_f32(&mut line[x..(x + 4)], val[0]);
             }
-
-            debug_assert!(self.buffer.len() - len_before == line_data_size);
-
-            i -= film.width as isize;
-            line += 1;
-        }
+        });
     }
 
-    pub fn store(&mut self, film: &film::Film) {
-        self.buffer.clear();
+    pub fn update(&mut self, film: &film::Film) {
+        if self.width != film.width || self.height != film.height {
+            // Re-initializate the buffer with the EXR file layout.
+            self.buffer.clear();
+            self.width = film.width;
+            self.height = film.height;
 
-        // Begin header.
-        self.write_header();
-        self.write_channels_attr();
-        self.write_compression_attr();
-        self.write_data_display_window_attrs(film.width, film.height);
-        self.write_line_order_attr();
-        self.write_pixel_aspect_ratio_attr();
-        self.write_screen_window_center_attr();
-        self.write_screen_window_width(film.width);
-        self.buffer.push(0); // End header.
+            // Begin header.
+            self.write_header();
+            self.write_channels_attr();
+            self.write_compression_attr();
+            self.write_data_display_window_attrs(film.width, film.height);
+            self.write_line_order_attr();
+            self.write_pixel_aspect_ratio_attr();
+            self.write_screen_window_center_attr();
+            self.write_screen_window_width(film.width);
+            self.buffer.push(0); // End header.
 
-        // Begin line offset table.
-        self.write_line_offset_table(film); // End line offset table.
+            // Begin line offset table.
+            self.write_line_offset_table(film); // End line offset table.
+            self.data_offset = self.buffer.len();
+        }
 
-        // Begin data.
+        // Begin data. This will resize the buffer the first time around, but will overwrite the
+        // buffer on subsequent rounds.
         self.write_channels(film); // End data.
     }
 
-    pub fn write<P: AsRef<Path>>(&self, path: P) {
-        let mut buffer = File::create(path).unwrap();
-        buffer.write(&self.buffer).unwrap();
+    pub fn write(&mut self) {
+        self.file.seek(io::SeekFrom::Start(0)).unwrap();
+        self.file.write_all(&self.buffer).unwrap();
     }
 }

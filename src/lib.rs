@@ -1,7 +1,4 @@
 #[macro_use] extern crate bitflags;
-#[macro_use] extern crate gfx;
-extern crate gfx_window_glutin;
-extern crate glutin;
 extern crate rand;
 extern crate rayon;
 extern crate byteorder;

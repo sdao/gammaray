@@ -49,29 +49,23 @@ pub fn main() {
     let kernel = render::PathTracerKernel::new();
 
     let mut film = render::Film::new(width, height);
-    let mut writer = render::ExrWriter { buffer: vec![] };
-    thread::spawn(move || {
-        let mut iter_count = 0usize;
-        loop {
-            let start = std::time::Instant::now();
-            stage.trace(&c, &kernel, &mut film);
-            let stop = std::time::Instant::now();
-
-            if iter_count % 4 == 0 {
-                writer.store(&film);
-                writer.write("output.exr");
-            }
-
-            let duration = stop - start;
-            let secs = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
-            println!("Iteration {} [duration: {:.3} sec / {:.3} fps]",
-                    iter_count, secs, 1.0 / secs);
-
-            iter_count += 1;
-        }
-    });
-
+    let mut writer = render::ExrWriter::new("output.exr");
+    let mut iter_count = 0usize;
     loop {
-        thread::sleep(time::Duration::from_millis(1000));
+        let start = std::time::Instant::now();
+        stage.trace(&c, &kernel, &mut film);
+        let stop = std::time::Instant::now();
+
+        if iter_count % 4 == 0 {
+            writer.update(&film);
+            writer.write();
+        }
+
+        let duration = stop - start;
+        let secs = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+        println!("Iteration {} [duration: {:.3} sec / {:.3} fps]",
+                iter_count, secs, 1.0 / secs);
+
+        iter_count += 1;
     }
 }
