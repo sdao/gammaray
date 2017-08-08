@@ -25,41 +25,48 @@ pub trait Kernel : Sync + Send {
             prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult;
 }
 
+/// This is a kernel used for debugging; it encodes the bounce directions in the colors.
+pub struct BounceKernel {
+}
+
+impl BounceKernel {
+    pub fn new() -> BounceKernel { BounceKernel {} }
+}
+
+impl Kernel for BounceKernel {
+    fn bounce(&self, _: usize, incoming_direction: &core::Vec, normal: &core::Vec,
+        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult
+    {
+        let material = prim.material();
+        let (tangent, binormal) = normal.coord_system();
+        let incoming_local = (-incoming_direction).world_to_local(&tangent, &binormal, &normal);
+        let sample = material.sample(&incoming_local, rng);
+        let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
+
+        KernelResult {
+            throughput: core::Vec::zero(),
+            light: outgoing_world,
+            direction: core::Vec::zero()
+        }
+    }
+}
+
 /// This is a kernel used for debugging; it shows the display colors.
 pub struct DisplayColorKernel {
-    pub max_depth: usize,
 }
 
 impl DisplayColorKernel {
-    pub fn new() -> DisplayColorKernel {
-        DisplayColorKernel {max_depth: 1}
-    }
-    pub fn with_max_depth(max_depth: usize) -> DisplayColorKernel {
-        DisplayColorKernel {max_depth: max_depth}
-    }
+    pub fn new() -> DisplayColorKernel { DisplayColorKernel {} }
 }
 
 impl Kernel for DisplayColorKernel {
-    fn bounce(&self, depth: usize, _: &core::Vec, normal: &core::Vec,
-        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult
+    fn bounce(&self, _: usize, _: &core::Vec, _: &core::Vec,
+        prim: &Box<geom::Prim>, _: &mut rand::XorShiftRng) -> KernelResult
     {
-        if depth == self.max_depth {
-            KernelResult {
-                throughput: core::Vec::zero(),
-                light: core::Vec::one(),
-                direction: core::Vec::zero()
-            }
-        }
-        else {
-            let (tangent, binormal) = normal.coord_system();
-            let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: false};
-            let outgoing_local = cosine_sample_hemis.ind_sample(rng);
-            let outgoing_world = outgoing_local.local_to_world(&tangent, &binormal, &normal);
-            KernelResult {
-                throughput: prim.display_color().clone(),
-                light: core::Vec::zero(),
-                direction: outgoing_world
-            }
+        KernelResult {
+            throughput: core::Vec::zero(),
+            light: prim.display_color().clone(),
+            direction: core::Vec::zero()
         }
     }
 }
