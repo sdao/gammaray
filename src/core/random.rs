@@ -84,7 +84,7 @@ impl IndependentSample<vector::Vec> for CosineSampleHemisphere {
     fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         const AREA_SAMPLE_DISK: AreaSampleDisk = AreaSampleDisk {};
         let (x, y) = AREA_SAMPLE_DISK.ind_sample(rng);
-        let z = f64::max(0.0, 1.0 - x * x - y * y);
+        let z = f64::max(0.0, 1.0 - x * x - y * y).sqrt();
 
         if self.flipped {
             vector::Vec::new(x, y, -1.0 * z)
