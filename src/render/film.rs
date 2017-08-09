@@ -78,6 +78,7 @@ impl Film {
 
     pub fn report_samples(&mut self, samples: &std::vec::Vec<FilmSample>) {
         let (widthf, heightf) = (self.width as f64, self.height as f64);
+        let (last_col, last_row) = (self.width as isize - 1, self.height as isize - 1);
         for sample in samples {
             let col_cont = core::lerp(0.0, widthf, 0.5 * (sample.s + 1.0));
             let row_cont = core::lerp(0.0, heightf, 0.5 * (sample.t + 1.0));
@@ -87,10 +88,16 @@ impl Film {
             // Note: the min values must be casted to isize first because they may contain negative
             // values. The max values can be casted to usize first because we don't have to deal
             // with negatives.
-            let min_col = cmp::max((col_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
-            let max_col = cmp::min((col_discr + FILTER_WIDTH).floor() as usize, self.width - 1);
-            let min_row = cmp::max((row_discr - FILTER_WIDTH).ceil() as isize, 0) as usize;
-            let max_row = cmp::min((row_discr + FILTER_WIDTH).floor() as usize, self.height - 1);
+            let min_col = core::clamp(
+                    (col_discr - FILTER_WIDTH).ceil() as isize, 0, last_col) as usize;
+            let max_col = core::clamp(
+                    (col_discr + FILTER_WIDTH).floor() as isize, 0, last_col) as usize;
+            let min_row = core::clamp(
+                    (row_discr - FILTER_WIDTH).ceil() as isize, 0, last_row) as usize;
+            let max_row = core::clamp(
+                    (row_discr + FILTER_WIDTH).floor() as isize, 0, last_row) as usize;
+            debug_assert!(max_row < self.height, "max_row {} >= {}", max_row, self.height);
+            debug_assert!(max_col < self.width, "max_col {} >= {}", max_col, self.width);
 
             for y in (min_row)..(max_row + 1) {
                 for x in (min_col)..(max_col + 1) {
