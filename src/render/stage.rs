@@ -14,6 +14,10 @@ use rand;
 use rand::{Rng, SeedableRng};
 use rayon::prelude::*;
 
+/// The distance to push the origin of each new ray along the normal.
+/// XXX: PBRT says that we should be reprojecting and computing an error bound instead.
+const RAY_PUSH_DIST: f64 = 1e-4;
+
 pub struct Stage {
     bvh: Bvh,
     sample_storage: std::vec::Vec<film::FilmSample>
@@ -48,7 +52,7 @@ impl Stage {
                     light = &light + &throughput.comp_mult(&kernel_result.light);
                     throughput = throughput.comp_mult(&kernel_result.throughput);
                     current_ray = Ray::new(
-                            &current_ray.at(dist) + &(&kernel_result.direction * 1e-6),
+                            &current_ray.at(dist) + &(&kernel_result.direction * RAY_PUSH_DIST),
                             kernel_result.direction);
                 },
                 Intersection::NoHit => {
