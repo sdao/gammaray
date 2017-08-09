@@ -12,11 +12,11 @@ use std::ops::{Mul, Index, IndexMut};
 /** A 4x4 matrix in row-major order. */
 #[derive(Clone)]
 pub struct Mat {
-    storage: [[f64; 4]; 4],
+    storage: [[f32; 4]; 4],
 }
 
 impl Mat {
-    pub fn new(data: [[f64; 4]; 4]) -> Mat {
+    pub fn new(data: [[f32; 4]; 4]) -> Mat {
         Self {storage: data}
     }
 
@@ -28,7 +28,7 @@ impl Mat {
         Self::diagonal(1.0)
     }
 
-    pub fn diagonal(k: f64) -> Mat {
+    pub fn diagonal(k: f32) -> Mat {
         let mut output = Self::zero();
         output[0][0] = k;
         output[0][1] = 0.0;
@@ -50,7 +50,7 @@ impl Mat {
         output
     }
 
-    pub fn scale(k: f64) -> Mat {
+    pub fn scale(k: f32) -> Mat {
         let mut output = Self::zero();
         output[0][0] = k;
         output[0][1] = 0.0;
@@ -133,7 +133,7 @@ impl Mat {
     }
 
     fn determinant3(&self, r1: usize, r2: usize, r3: usize, c1: usize, c2: usize, c3: usize)
-        -> f64
+        -> f32
     {
         (  self[r1][c1] * self[r2][c2] * self[r3][c3]
 	     + self[r1][c2] * self[r2][c3] * self[r3][c1]
@@ -143,7 +143,7 @@ impl Mat {
 	     - self[r1][c3] * self[r2][c2] * self[r3][c1])
     }
 
-    pub fn determinant(&self) -> f64 {
+    pub fn determinant(&self) -> f32 {
         (- self[0][3] * self.determinant3(1, 2, 3, 0, 1, 2)
          + self[1][3] * self.determinant3(0, 2, 3, 0, 1, 2)
          - self[2][3] * self.determinant3(0, 1, 3, 0, 1, 2)
@@ -211,44 +211,44 @@ impl Mat {
     //
     // [END LICENSE TEXT]
     pub fn inverted(&self) -> Mat {
-        let mut x00: f64;
-        let mut x01: f64;
-        let x02: f64;
-        let x03: f64;
-        let mut x10: f64;
-        let mut x11: f64;
-        let x12: f64;
-        let x13: f64;
-        let mut x20: f64;
-        let mut x21: f64;
-        let x22: f64;
-        let x23: f64;
-        let mut x30: f64;
-        let mut x31: f64;
-        let x32: f64;
-        let x33: f64;
-        let mut y01: f64;
-        let mut y02: f64;
-        let mut y03: f64;
-        let mut y12: f64;
-        let mut y13: f64;
-        let mut y23: f64;
-        let z00: f64;
-        let z01: f64;
-        let z02: f64;
-        let z03: f64;
-        let z10: f64;
-        let z11: f64;
-        let z12: f64;
-        let z13: f64;
-        let z20: f64;
-        let z21: f64;
-        let z22: f64;
-        let z23: f64;
-        let z30: f64;
-        let z31: f64;
-        let z32: f64;
-        let z33: f64;
+        let mut x00: f32;
+        let mut x01: f32;
+        let x02: f32;
+        let x03: f32;
+        let mut x10: f32;
+        let mut x11: f32;
+        let x12: f32;
+        let x13: f32;
+        let mut x20: f32;
+        let mut x21: f32;
+        let x22: f32;
+        let x23: f32;
+        let mut x30: f32;
+        let mut x31: f32;
+        let x32: f32;
+        let x33: f32;
+        let mut y01: f32;
+        let mut y02: f32;
+        let mut y03: f32;
+        let mut y12: f32;
+        let mut y13: f32;
+        let mut y23: f32;
+        let z00: f32;
+        let z01: f32;
+        let z02: f32;
+        let z03: f32;
+        let z10: f32;
+        let z11: f32;
+        let z12: f32;
+        let z13: f32;
+        let z20: f32;
+        let z21: f32;
+        let z22: f32;
+        let z23: f32;
+        let z30: f32;
+        let z31: f32;
+        let z32: f32;
+        let z33: f32;
 
         // Pickle 1st two columns of matrix into registers.
         x00 = self[0][0];
@@ -343,7 +343,7 @@ impl Mat {
             output
         }
         else {
-    	    Self::scale(std::f64::MAX)
+    	    Self::scale(std::f32::MAX)
         }
     }
 }
@@ -459,15 +459,15 @@ impl<'a, 'b> Mul<&'b Mat> for &'a Mat {
 }
 
 impl Index<usize> for Mat {
-    type Output = [f64; 4];
+    type Output = [f32; 4];
 
-    fn index(&self, index: usize) -> &[f64; 4] {
+    fn index(&self, index: usize) -> &[f32; 4] {
         &self.storage[index]
     }
 }
 
 impl IndexMut<usize> for Mat {
-    fn index_mut(&mut self, index: usize) -> &mut [f64; 4] {
+    fn index_mut(&mut self, index: usize) -> &mut [f32; 4] {
         &mut self.storage[index]
     }
 }

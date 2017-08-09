@@ -3,7 +3,6 @@ use core;
 use geom;
 
 use rand;
-use rand::distributions::IndependentSample;
 use rand::Rng;
 
 pub struct KernelResult {
@@ -101,7 +100,7 @@ impl Kernel for PathTracerKernel {
 
         // Do Russian Roulette if this path is "old".
         if depth > RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
-            let rv = rng.next_f64();
+            let rv = rng.next_f32();
 
             let prob_live = core::clamped_lerp(0.25, 1.00, throughput.luminance());
 

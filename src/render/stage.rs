@@ -16,7 +16,8 @@ use rayon::prelude::*;
 
 /// The distance to push the origin of each new ray along the normal.
 /// XXX: PBRT says that we should be reprojecting and computing an error bound instead.
-const RAY_PUSH_DIST: f64 = 1e-4;
+/// XXX: Seems like we need around 1e-3 for floats and 1e-6 for doubles if hardcoding.
+const RAY_PUSH_DIST: f32 = 1.0e-3;
 
 pub struct Stage {
     bvh: Bvh,

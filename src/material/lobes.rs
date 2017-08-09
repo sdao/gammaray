@@ -9,7 +9,7 @@ use rand::distributions::IndependentSample;
 pub struct LobeSample {
     pub result: core::Vec,
     pub outgoing: core::Vec,
-    pub pdf: f64
+    pub pdf: f32
 }
 
 bitflags! {
@@ -27,7 +27,7 @@ bitflags! {
 
 pub trait Lobe : Sync + Send {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
-    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f64 {
+    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
         if !i.is_local_same_hemisphere(o) {
             0.0
         }
@@ -61,13 +61,13 @@ impl Lobe for DisneyDiffuseRefl {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
         let f_in = util::schlick(i);
         let f_out = util::schlick(o);
-        &self.color * (std::f64::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
+        &self.color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
     }
 }
 
 pub struct DisneyRetroRefl {
     pub color: core::Vec,
-    pub roughness: f64
+    pub roughness: f32
 }
 
 impl Lobe for DisneyRetroRefl {
@@ -84,15 +84,15 @@ impl Lobe for DisneyRetroRefl {
         let f_in = util::schlick(i);
         let f_out = util::schlick(o);
 
-        &self.color * (std::f64::consts::FRAC_1_PI * r_r
+        &self.color * (std::f32::consts::FRAC_1_PI * r_r
                 * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
     }
 }
 
 pub struct DisneySpecularRefl {
     pub color: core::Vec,
-    pub metallic: f64,
-    pub ior: f64
+    pub metallic: f32,
+    pub ior: f32
 }
 
 impl DisneySpecularRefl {
@@ -104,7 +104,7 @@ impl DisneySpecularRefl {
         core::Vec::zero()
     }
 
-    fn fresnel(&self, diff_angle: f64) -> core::Vec {
+    fn fresnel(&self, diff_angle: f32) -> core::Vec {
         core::Vec::zero()
     }
 }

@@ -18,7 +18,7 @@ impl Ray {
         Ray {origin: vector::Vec::zero(), direction: vector::Vec::zero()}
     }
 
-    pub fn at(&self, k: f64) -> vector::Vec {
+    pub fn at(&self, k: f32) -> vector::Vec {
         &self.origin + &(k * &self.direction)
     }
 

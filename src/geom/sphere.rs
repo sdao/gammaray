@@ -5,13 +5,13 @@ use material;
 
 pub struct Sphere {
     mat: material::Material,
-    radius: f64,
+    radius: f32,
     xform: core::Mat,
     xform_inv: core::Mat,
 }
 
 impl Sphere {
-    pub fn new(material: material::Material, xform: core::Mat, radius: f64) -> Sphere
+    pub fn new(material: material::Material, xform: core::Mat, radius: f32) -> Sphere
     {
         let xf = xform;
         let inverted = xf.inverted();
@@ -48,7 +48,7 @@ impl prim::Prim for Sphere {
         }
     }
 
-    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f64, core::Vec) {
+    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f32, core::Vec) {
         let origin = &ray.origin;
         let l = &ray.direction;
 
