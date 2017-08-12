@@ -88,13 +88,13 @@ impl Film {
             // values. The max values can be casted to usize first because we don't have to deal
             // with negatives.
             let min_col = core::clamp(
-                    (col_discr - FILTER_WIDTH).ceil() as isize, 0, last_col) as usize;
+                    f32::ceil(col_discr - FILTER_WIDTH) as isize, 0, last_col) as usize;
             let max_col = core::clamp(
-                    (col_discr + FILTER_WIDTH).floor() as isize, 0, last_col) as usize;
+                    f32::floor(col_discr + FILTER_WIDTH) as isize, 0, last_col) as usize;
             let min_row = core::clamp(
-                    (row_discr - FILTER_WIDTH).ceil() as isize, 0, last_row) as usize;
+                    f32::ceil(row_discr - FILTER_WIDTH) as isize, 0, last_row) as usize;
             let max_row = core::clamp(
-                    (row_discr + FILTER_WIDTH).floor() as isize, 0, last_row) as usize;
+                    f32::floor(row_discr + FILTER_WIDTH) as isize, 0, last_row) as usize;
             debug_assert!(max_row < self.height, "max_row {} >= {}", max_row, self.height);
             debug_assert!(max_col < self.width, "max_col {} >= {}", max_col, self.width);
 

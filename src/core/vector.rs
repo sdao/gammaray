@@ -71,7 +71,7 @@ impl Vec {
      * Taken from page 63 of Pharr & Humphreys' Physically-Based Rendering.
      */
     pub fn coord_system(&self) -> (Vec, Vec) {
-        if &self.x.abs() > &self.y.abs() {
+        if f32::abs(self.x) > f32::abs(self.y) {
             let inv_len = 1.0 / f32::sqrt(self.x * self.x + self.z * self.z);
             let v2 = Self::new(-self.z * inv_len, 0.0, self.x * inv_len);
             let v3 = self.cross(&v2);
@@ -118,18 +118,20 @@ impl Vec {
      */
     pub fn cos_theta(&self) -> f32 { self.z }
 
+    pub fn cos2_theta(&self) -> f32 { self.z * self.z }
+
     /**
      * Returns Abs[Cos[Theta]] of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn abs_cos_theta(&self) -> f32 { self.z.abs() }
+    pub fn abs_cos_theta(&self) -> f32 { f32::abs(self.z) }
 
     /**
      * Returns Sin[Theta]^2 of a vector where Theta is the polar angle of the
      * vector in spherical coordinates.
      */
-    pub fn sin_theta2(&self) -> f32 {
-        f32::max(0.0, 1.0 - self.cos_theta() * self.cos_theta())
+    pub fn sin2_theta(&self) -> f32 {
+        f32::max(0.0, 1.0 - self.cos2_theta())
     }
 
     /**
@@ -137,7 +139,15 @@ impl Vec {
      * in spherical coordinates.
      */
     pub fn sin_theta(&self) -> f32 {
-        f32::sqrt(self.sin_theta2())
+        f32::sqrt(self.sin2_theta())
+    }
+
+    pub fn tan_theta(&self) -> f32 {
+        self.sin_theta() / self.cos_theta()
+    }
+
+    pub fn tan2_theta(&self) -> f32 {
+        self.sin2_theta() / self.cos2_theta()
     }
 
     /**
@@ -154,6 +164,10 @@ impl Vec {
         }
     }
 
+    pub fn cos2_phi(&self) -> f32 {
+        self.cos_phi() * self.cos_phi()
+    }
+
     /**
      * Returns Sin[Phi] of a vector where Phi is the azimuthal angle of the vector
      * in spherical coordinates.
@@ -168,12 +182,16 @@ impl Vec {
         }
     }
 
+    pub fn sin2_phi(self) -> f32 {
+        self.sin_phi() * self.sin_phi()
+    }
+
     /**
      * Determines if two vectors in the same local coordinate space are in the
      * same hemisphere.
      */
     pub fn is_local_same_hemisphere(&self, v: &Vec) -> bool {
-        self.z * v.z >= 0.0
+        self.z * v.z > 0.0
     }
 
     /**
@@ -181,6 +199,20 @@ impl Vec {
      */
     pub fn luminance(&self) -> f32 {
         0.21 * self.x + 0.71 * self.y + 0.08 * self.z
+    }
+
+    /**
+     * Interprets this vector as a color; returns a version normalized by luminance to isolate hue
+     * and saturation.
+     */
+    pub fn tint(&self) -> Vec {
+        let lume = self.luminance();
+        if lume > 0.0 {
+            self / lume
+        }
+        else {
+            Self::one()
+        }
     }
 
     /**
@@ -216,7 +248,7 @@ impl Vec {
       if k < 0.0 {
           Self::zero()
       } else {
-          let k = eta * d + k.sqrt();
+          let k = eta * d + f32::sqrt(k);
           Self::new(
               self.x * eta - n.x * k,
               self.y * eta - n.y * k,
@@ -235,6 +267,13 @@ impl Vec {
 
     pub fn is_finite(&self) -> bool {
         self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
+    }
+
+    pub fn lerp(&self, other: &Vec, a: f32) -> Vec {
+        Self::new(
+            math::lerp(self.x, other.x, a),
+            math::lerp(self.y, other.y, a),
+            math::lerp(self.z, other.z, a))
     }
 }
 

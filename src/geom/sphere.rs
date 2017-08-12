@@ -61,7 +61,7 @@ impl prim::Prim for Sphere {
         let discriminant = (b * b) - (a * c);
 
         if discriminant > 0.0 {
-            let sqrt_discriminant = discriminant.sqrt();
+            let sqrt_discriminant = f32::sqrt(discriminant);
             // Quadratic has at most 2 results.
             let res_pos = -b + sqrt_discriminant;
             let res_neg = -b - sqrt_discriminant;

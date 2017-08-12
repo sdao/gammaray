@@ -1,5 +1,7 @@
 use std;
 
+pub const TWO_PI: f32 = 2.0 * std::f32::consts::PI;
+
 pub fn clamp<T>(x: T, a: T, b: T) -> T where T: PartialOrd {
     if x < a {
         a
@@ -66,7 +68,7 @@ pub fn is_positive(x: f32) -> bool {
  * @returns the value of the filter
  */
 pub fn triangle_filter(x: f32, y: f32, width: f32) -> f32 {
-    f32::max(0.0, width - x.abs()) * f32::max(0.0, width - y.abs())
+    f32::max(0.0, width - f32::abs(x)) * f32::max(0.0, width - f32::abs(y))
 }
 
 /**
@@ -84,7 +86,7 @@ pub fn mitchell_filter1(x: f32) -> f32 {
     const B: f32 = 1.0 / 3.0;
     const C: f32 = 1.0 / 3.0;
 
-    let twox = (2.0 * x).abs(); // Convert to the range [0, 2].
+    let twox = f32::abs(2.0 * x); // Convert to the range [0, 2].
 
     if twox > 1.0 {
         ((-B - 6.0 * C) * (twox * twox * twox)

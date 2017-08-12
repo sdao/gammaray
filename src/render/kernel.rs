@@ -80,6 +80,7 @@ impl PathTracerKernel {
 }
 
 const RUSSIAN_ROULETTE_DEPTH: usize = 10;
+const RUSSIAN_ROULETTE_DEPTH_AGRESSIVE: usize = 20;
 
 impl Kernel for PathTracerKernel {
     fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
@@ -95,14 +96,19 @@ impl Kernel for PathTracerKernel {
         let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
 
         let light = material.light(&incoming_local);
-        let mut throughput = &sample.result * (normal.dot(&outgoing_world).abs() / sample.pdf);
+        let mut throughput = &sample.result * (f32::abs(normal.dot(&outgoing_world)) / sample.pdf);
         let mut dir = outgoing_world;
 
         // Do Russian Roulette if this path is "old".
         if depth > RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
             let rv = rng.next_f32();
 
-            let prob_live = core::clamped_lerp(0.25, 1.00, throughput.luminance());
+            let prob_live = if depth > RUSSIAN_ROULETTE_DEPTH_AGRESSIVE {
+                core::clamped_lerp(0.0, 0.75, throughput.luminance())
+            }
+            else {
+                core::clamped_lerp(0.25, 1.00, throughput.luminance())
+            };
 
             if rv < prob_live {
                 // The ray lives (more energy = more likely to live).

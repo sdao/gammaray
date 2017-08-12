@@ -33,6 +33,8 @@ pub struct Material {
 impl Material {
     /// Creates a material with lobes that form the Disney principled BSSRDF shader.
     pub fn disney(base_color: core::Vec, incandescence: core::Vec) -> Material {
+        let roughness = 0.2;
+        let diffuse_weight = 1.0;
         Material {
             // base_color: base_color,
             // incandescence: incandescence,
@@ -51,8 +53,19 @@ impl Material {
             display: base_color,
             light: Box::new(lights::DiffuseAreaLight {color: incandescence}),
             lobes: vec![
-                Box::new(lobes::DisneyDiffuseRefl {color: base_color}),
-                Box::new(lobes::DisneyRetroRefl {color: base_color, roughness: 1.0}),
+                Box::new(lobes::DisneyDiffuseRefl::new(&(&base_color * diffuse_weight))),
+                Box::new(lobes::DisneyRetroRefl::new(&(&base_color * diffuse_weight), roughness)),
+                Box::new(lobes::DisneySpecularRefl::new(roughness))
+            ]
+        }
+    }
+
+    pub fn mirror() -> Material {
+        Material {
+            display: core::Vec::one(),
+            light: Box::new(lights::DiffuseAreaLight {color: core::Vec::zero()}),
+            lobes: vec![
+                Box::new(lobes::PerfectMirror::new())
             ]
         }
     }

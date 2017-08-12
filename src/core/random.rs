@@ -35,14 +35,14 @@ impl IndependentSample<(f32, f32)> for AreaSampleDisk {
             (0.0, 0.0)
         }
         else {
-            let (r, theta) = if sx.abs() > sy.abs() {
+            let (r, theta) = if f32::abs(sx) > f32::abs(sy) {
                 (sx, std::f32::consts::FRAC_PI_4 * (sy / sx))
             }
             else {
                 (sy, std::f32::consts::FRAC_PI_2 - std::f32::consts::FRAC_PI_4 * (sx / sy))
             };
 
-            (r * theta.cos(), r * theta.sin())
+            (r * f32::cos(theta), r * f32::sin(theta))
         }
     }
 }
@@ -84,7 +84,7 @@ impl IndependentSample<vector::Vec> for CosineSampleHemisphere {
     fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
         const AREA_SAMPLE_DISK: AreaSampleDisk = AreaSampleDisk {};
         let (x, y) = AREA_SAMPLE_DISK.ind_sample(rng);
-        let z = f32::max(0.0, 1.0 - x * x - y * y).sqrt();
+        let z = f32::sqrt(f32::max(0.0, 1.0 - x * x - y * y));
 
         if self.flipped {
             vector::Vec::new(x, y, -1.0 * z)
@@ -133,7 +133,7 @@ impl IndependentSample<vector::Vec> for UniformSampleSphere {
             let StandardNormal(z) = rng.gen();
             z as f32
         };
-        let a = 1.0 / (x * x + y * y + z * z).sqrt();
+        let a = 1.0 / f32::sqrt(x * x + y * y + z * z);
 
         vector::Vec::new(a * x, a * y, a * z)
     }
@@ -173,7 +173,7 @@ impl UniformSampleCone {
      * @returns         the probability that the angle was sampled
      */
     pub fn pdf_internal(half_angle: f32) -> f32 {
-        let solid_angle = std::f32::consts::PI * 2.0 * (1.0 - half_angle.cos());
+        let solid_angle = std::f32::consts::PI * 2.0 * (1.0 - f32::cos(half_angle));
         1.0 / solid_angle
     }
 
@@ -188,7 +188,7 @@ impl UniformSampleCone {
      * @returns         the probability that the angle was sampled
      */
     pub fn pdf(half_angle: f32, direction: &vector::Vec) -> f32{
-      let cos_half_angle = half_angle.cos();
+      let cos_half_angle = f32::cos(half_angle);
       let solid_angle = std::f32::consts::PI * 2.0 * (1.0 - cos_half_angle);
       if direction.cos_theta() > cos_half_angle {
           // Within the sampling cone.
@@ -208,12 +208,12 @@ impl Sample<vector::Vec> for UniformSampleCone {
 
 impl IndependentSample<vector::Vec> for UniformSampleCone {
     fn ind_sample<R>(&self, rng: &mut R) -> vector::Vec where R: Rng {
-        let h = self.half_angle.cos();
+        let h = f32::cos(self.half_angle);
         let z = Range::new(h, 1.0).ind_sample(rng);
         let t = Range::new(0.0, std::f32::consts::PI * 2.0).ind_sample(rng);
-        let r = (1.0 - (z * z)).sqrt();
-        let x = r * t.cos();
-        let y = r * t.sin();
+        let r = f32::sqrt(1.0 - (z * z));
+        let x = r * f32::cos(t);
+        let y = r * f32::sin(t);
 
         vector::Vec::new(x, y, z)
     }
