@@ -5,51 +5,32 @@ use rand;
 use rand::Rng;
 
 /// Assuming that we're coming from air into the material.
-pub fn schlick_r0_from_ior(ior: f32) -> f32 {
-    f32::sqrt(ior - 1.0) / f32::sqrt(ior + 1.0)
-}
-
-pub fn schlick_weight(cos_theta: f32) -> f32 {
+pub fn fresnel_schlick_weight(cos_theta: f32) -> f32 {
     let x = core::clamp_unit(1.0 - cos_theta);
     x * x * x * x * x
 }
 
-pub fn fresnel_schlick(r0: &core::Vec, cos_theta: f32) -> core::Vec {
-    core::Vec::zero().lerp(r0, schlick_weight(cos_theta))
+pub struct DisneyFresnel {
+    r0: core::Vec,
+    ior: f32,
 }
 
-/// Quick Fresnel evaluation where ior is real (i.e. dielectrics).
-/// See PBRT 3e page 519.
-pub fn fresnel_dielectric(mut ior_incident: f32, mut ior_transmit: f32, cos_theta_incident: f32)
-    -> core::Vec
-{
-    let mut cost_i = core::clamp(cos_theta_incident, -1.0, 1.0);
+impl DisneyFresnel {
+    pub fn new(ior: f32, color: core::Vec, specular: f32, specular_tint: f32, metallic: f32)
+        -> DisneyFresnel
+    {
+        let lume = color.luminance();
+        let ctint = if lume > 0.0 { &color / lume } else { core::Vec::one() };
+        let spec_color = specular * 0.08 * &core::Vec::one().lerp(&ctint, specular_tint);
+        let cspec0 = spec_color.lerp(&color, metallic);
 
-    // Potentially swap indices of reflection if the incident dir is on the inside
-    // of the medium.
-    let exiting = cost_i < 0.0;
-    if exiting {
-        std::mem::swap(&mut ior_incident, &mut ior_transmit);
-        cost_i = f32::abs(cost_i);
+        /// XXX: ior unused because the 2012 Disney model doesn't use it (uses specular instead).
+        DisneyFresnel { r0: cspec0, ior: ior }
     }
 
-    // Compute Cos[Theta_t] using Snell's law; we'll need to handle total internal
-    // reflection as well.
-    let sint_i = f32::sqrt(f32::max(0.0f32, 1.0 - cost_i * cost_i));
-    let sint_t = ior_incident / ior_transmit * sint_i;
-    if sint_t >= 1.0 {
-        // Total internal reflection.
-        return core::Vec::one();
+    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+        self.r0.lerp(&core::Vec::one(), fresnel_schlick_weight(cos_theta))
     }
-    let cost_t = f32::sqrt(f32::max(0.0f32, 1.0 - sint_t * sint_t));
-
-    // Actual computation.
-    let r_parl = ((ior_transmit * cost_i) - (ior_incident * cost_t)) /
-                 ((ior_transmit * cost_i) + (ior_incident * cost_t));
-    let r_perp = ((ior_incident * cost_i) - (ior_transmit * cost_t)) /
-                 ((ior_incident * cost_i) + (ior_incident * cost_t));
-    let x = (r_parl * r_parl + r_perp * r_perp) / 2.0;
-    core::Vec::new(x, x, x)
 }
 
 pub struct GgxDistribution {

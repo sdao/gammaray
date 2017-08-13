@@ -31,10 +31,20 @@ pub struct Material {
 }
 
 impl Material {
+    pub fn diffuse_light(incandescence: core::Vec) -> Material {
+        Material {
+            display: incandescence,
+            light: Box::new(lights::DiffuseAreaLight {color: incandescence}),
+            lobes: vec![]
+        }
+    }
     /// Creates a material with lobes that form the Disney principled BSSRDF shader.
-    pub fn disney(base_color: core::Vec, incandescence: core::Vec) -> Material {
-        let roughness = 0.2;
-        let diffuse_weight = 1.0;
+    pub fn disney(base_color: core::Vec, specular: f32) -> Material {
+        let roughness = 0.05;
+        let metallic = 0.5;
+        let ior = 1.5;
+        let specular_tint = 0.4;
+        let diffuse_weight = 1.0 - metallic;
         Material {
             // base_color: base_color,
             // incandescence: incandescence,
@@ -51,11 +61,12 @@ impl Material {
             // spec_trans: 0.0,
             // scatter_distance: core::Vec::zero(),
             display: base_color,
-            light: Box::new(lights::DiffuseAreaLight {color: incandescence}),
+            light: Box::new(lights::NullLight {}),
             lobes: vec![
-                Box::new(lobes::DisneyDiffuseRefl::new(&(&base_color * diffuse_weight))),
-                Box::new(lobes::DisneyRetroRefl::new(&(&base_color * diffuse_weight), roughness)),
-                Box::new(lobes::DisneySpecularRefl::new(roughness))
+                Box::new(lobes::DisneyDiffuseRefl::new(&base_color * diffuse_weight)),
+                Box::new(lobes::DisneyRetroRefl::new(&base_color * diffuse_weight, roughness)),
+                Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior, specular,
+                        specular_tint, metallic)),
             ]
         }
     }
@@ -76,6 +87,10 @@ impl Material {
 
     /// See PBRT 3e, page 832.
     pub fn sample(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> lobes::LobeSample {
+        if self.lobes.len() == 0 {
+            return lobes::LobeSample::zero();
+        }
+
         // Choose a lobe and sample it.
         let range = Range::new(0, self.lobes.len());
         let r = range.ind_sample(rng);
