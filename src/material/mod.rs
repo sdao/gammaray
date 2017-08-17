@@ -1,6 +1,7 @@
 mod lights;
 
 mod lobes;
+pub use material::lobes::*;
 
 mod material;
 pub use material::material::Material;

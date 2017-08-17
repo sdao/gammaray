@@ -111,6 +111,7 @@ impl Lobe for DisneyRetroRefl {
     }
 }
 
+/// This implementation is derived from the MicrofacetReflection in PBRT 3e.
 pub struct DisneySpecularRefl {
     microfacet: util::GgxDistribution,
     fresnel: util::DisneyFresnel
@@ -131,9 +132,11 @@ impl DisneySpecularRefl {
     {
         // XXX: We don't actually have proper tangents on surfaces, so anisotropy isn't going
         // to really make sense at the moment.
+        let ior_adjusted = f32::max(ior, 1.01);
         DisneySpecularRefl {
             microfacet: util::GgxDistribution::new(roughness, anisotropic),
-            fresnel: util::DisneyFresnel::new(ior, color, specular, specular_tint, metallic)
+            fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular, specular_tint,
+                    metallic)
         }
     }
 }
@@ -171,7 +174,7 @@ impl Lobe for DisneySpecularRefl {
         }
         else {
             let half = self.microfacet.sample_half(i, rng);
-            let o = (-i).reflect(&half);
+            let o = i.reflect(&half);
             if !i.is_local_same_hemisphere(&o) {
                 LobeSample::zero()
             }
@@ -190,6 +193,153 @@ impl Lobe for DisneySpecularRefl {
 
     fn kind(&self) -> LobeKind {
         LOBE_GLOSSY | LOBE_REFLECTION
+    }
+}
+
+/// This implementation is derived from the MicrofacetTransmission in PBRT 3e.
+pub struct DisneySpecularTrans {
+    microfacet: util::GgxDistribution,
+    fresnel: util::FresnelDielectric,
+    ior: f32,
+    color: core::Vec,
+}
+
+impl DisneySpecularTrans {
+    pub fn new(color: core::Vec, roughness: f32, ior: f32) -> DisneySpecularTrans {
+        let ior_adjusted = f32::max(ior, 1.01);
+        DisneySpecularTrans {
+            microfacet: util::GgxDistribution::new(roughness, 0.0),
+            fresnel: util::FresnelDielectric::new(ior_adjusted),
+            ior: ior_adjusted,
+            color: color
+        }
+    }
+}
+
+impl Lobe for DisneySpecularTrans {
+    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        // This is defined for transmission only.
+        if i.is_local_same_hemisphere(&o) {
+            return core::Vec::zero();
+        }
+
+        let cos_theta_in = i.cos_theta();
+        let cos_theta_out = o.cos_theta();
+        if cos_theta_in == 0.0 || cos_theta_out == 0.0 {
+            return core::Vec::zero();
+        }
+
+        let eta = if cos_theta_in > 0.0 {
+            // Entering.
+            self.ior
+        }
+        else {
+            // Exiting.
+            1.0 / self.ior
+        };
+
+        let half_unnorm = i + &(o * eta);
+        let half = if half_unnorm.z > 0.0 {
+            half_unnorm.normalized()
+        }
+        else {
+            -&half_unnorm.normalized()
+        };
+
+        debug_assert!(i.is_finite());
+        debug_assert!(o.is_finite());
+        debug_assert!(half.is_finite(), "{} {} {}", half_unnorm, half, self.ior);
+
+        let fresnel = core::Vec::zero();//self.fresnel.fresnel(o.dot(&half));
+        let d = self.microfacet.d(&half);
+        let g = self.microfacet.g(i, o);
+
+        let sqrt_denom = i.dot(&half) + eta * &o.dot(&half);
+        let fresnel_inverse = &core::Vec::one() - &fresnel; // Amount transmitted!
+
+        let res = &self.color.comp_mult(&fresnel_inverse) *
+                f32::abs(
+                    d * g * f32::abs(o.dot(&half)) * f32::abs(i.dot(&half)) /
+                    (cos_theta_out * cos_theta_in * sqrt_denom * sqrt_denom)
+                );
+        return res;
+    }
+
+    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+        if i.is_local_same_hemisphere(&o) {
+            0.0
+        }
+        else {
+            // Compute $\wh$ from $\wo$ and $\wi$ for microfacet transmission
+            let eta = if i.cos_theta() > 0.0 {
+                // Entering.
+                self.ior
+            }
+            else {
+                // Exiting.
+                1.0 / self.ior
+            };
+
+            let half_unnorm = i + &(o * eta);
+            let half = if half_unnorm.z > 0.0 {
+                half_unnorm
+            }
+            else {
+                -&half_unnorm.normalized()
+            };
+            // println!("half={}", half);
+
+            // Compute change of variables _dwh\_dwi_ for microfacet transmission
+            let sqrt_denom = i.dot(&half) + eta * o.dot(&half);
+            let dwh_dwi = f32::abs((eta * eta * o.dot(&half)) / (sqrt_denom * sqrt_denom));
+            return self.microfacet.pdf(&i, &half) * dwh_dwi;
+        }
+    }
+
+    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+        // Sample microfacet orientation (half) and reflected direction (o).
+        if i.z == 0.0 {
+            LobeSample::zero()
+        }
+        else {
+            let half = self.microfacet.sample_half(i, rng);
+            // println!("HALF={}", half);
+            let eta = if i.cos_theta() > 0.0 {
+                // Entering.
+                1.0 / self.ior
+            }
+            else {
+                // Exiting.
+                // println!("EXITING, ior={}", self.ior);
+                self.ior
+            };
+            // println!("i={}, eta={}", i, eta);
+
+            let o = i.refract(&half, eta);
+            debug_assert!(o.is_finite());
+
+            if o.is_exactly_zero() {
+                LobeSample::zero()
+            }
+            else {
+                // Compute PDF of outoing vector for microfacet transmission.
+                let result = self.f(i, &o);
+                let pdf = self.pdf(i, &o);
+                debug_assert!(result.is_finite());
+                // debug_assert!(result.magnitude() / pdf > 0.1, "{} {} {}", result, pdf, half);
+                // XXX - exiting is broken but entering seems OK
+
+                LobeSample {
+                    result: result,
+                    outgoing: o,
+                    pdf: pdf
+                }
+            }
+        }
+    }
+
+    fn kind(&self) -> LobeKind {
+        LOBE_GLOSSY | LOBE_TRANSMISSION
     }
 }
 

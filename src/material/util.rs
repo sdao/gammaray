@@ -10,6 +10,36 @@ pub fn fresnel_schlick_weight(cos_theta: f32) -> f32 {
     x * x * x * x * x
 }
 
+pub fn fresnel_dielectric(cos_theta_in: f32, ior: f32) -> f32 {
+    // Potentially swap indices of refraction.
+    let entering = cos_theta_in > 0.0;
+    let (eta_i, eta_t, cos_theta_in_clamped) = if entering {
+        (ior, 1.0, core::clamp_unit(cos_theta_in))
+    }
+    else {
+        (1.0, ior, core::clamp_unit(-cos_theta_in))
+    };
+
+    // Compute cos_theta_trans using Snell's law.
+    let sin_theta_in = f32::sqrt(
+            f32::max(0.0, 1.0 - cos_theta_in_clamped * cos_theta_in_clamped));
+    let sin_theta_trans = eta_i / eta_t * sin_theta_in;
+
+    // Handle total internal reflection.
+    if sin_theta_trans >= 1.0 {
+        1.0
+    }
+    else {
+        let cos_theta_trans = f32::sqrt(
+                f32::max(0.0, 1.0 - sin_theta_trans * sin_theta_trans));
+        let r_parl = ((eta_t * cos_theta_in_clamped) - (eta_i * cos_theta_trans)) /
+                     ((eta_t * cos_theta_in_clamped) + (eta_i * cos_theta_trans));
+        let r_perp = ((eta_i * cos_theta_in_clamped) - (eta_t * cos_theta_trans)) /
+                     ((eta_i * cos_theta_in_clamped) + (eta_t * cos_theta_trans));
+        (r_parl * r_parl + r_perp * r_perp) / 2.0
+    }
+}
+
 pub struct DisneyFresnel {
     r0: core::Vec,
     ior: f32,
@@ -21,6 +51,7 @@ impl DisneyFresnel {
     {
         let lume = color.luminance();
         let ctint = if lume > 0.0 { &color / lume } else { core::Vec::one() };
+        //               |-------------| This part corresponds to the r0 calculation in Schlick.
         let spec_color = specular * 0.08 * &core::Vec::one().lerp(&ctint, specular_tint);
         let cspec0 = spec_color.lerp(&color, metallic);
 
@@ -33,11 +64,28 @@ impl DisneyFresnel {
     }
 }
 
+pub struct FresnelDielectric {
+    ior: f32,
+}
+
+impl FresnelDielectric {
+    pub fn new(ior: f32) -> FresnelDielectric {
+        FresnelDielectric {ior: ior}
+    }
+
+    pub fn fresnel(&self, cos_theta_in: f32) -> core::Vec {
+        &core::Vec::one() * fresnel_dielectric(cos_theta_in, self.ior)
+    }
+}
+
 pub struct GgxDistribution {
     ax: f32,
     ay: f32
 }
 
+/// This is based off the TrowbridgeReitzDistribution in PBRT 3e and the
+/// Disney BRDF shader source at:
+/// https://github.com/wdas/brdf/blob/master/src/brdfs/disney.brdf
 impl GgxDistribution {
     pub fn new(roughness: f32, anisotropic: f32) -> GgxDistribution {
         let aspect = f32::sqrt(1.0 - anisotropic * 0.9);
@@ -79,7 +127,6 @@ impl GgxDistribution {
         1.0 / (1.0 + self.lambda(i) + self.lambda(o))
     }
 
-    /// Taken from PBRT 3e.
     fn sample11(cos_theta: f32, u1: f32, u2: f32) -> (f32, f32) {
         // Special case (normal incidence).
         if cos_theta > 0.9999 {

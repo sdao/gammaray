@@ -4,7 +4,23 @@ use gammaray::geom;
 use gammaray::material;
 use gammaray::render;
 
+extern crate rand;
+use rand::{Rng, SeedableRng};
+use material::Lobe;
+
 pub fn main() {
+    // let mut x = rand::thread_rng();
+    // let mut y = rand::XorShiftRng::from_seed([x.gen(), x.gen(), x.gen(), x.gen()]);
+    // let t = material::DisneySpecularTrans::new(core::Vec::one(), 0.0, 1.0);
+    // let mut pdfs = 0.0;
+    // for i in 0..1000 {
+    //     let s = t.sample_f(&core::Vec::new(-0.2, -0.2, -0.8).normalized(), &mut y);
+    //     println!("{} {} {}", s.result, s.outgoing, s.pdf);
+    //     pdfs += s.pdf;
+    // }
+    // println!("pdf avg {}", pdfs / 100.0);
+    // return;
+
     let c = core::Camera::default();
     let s1 = geom::Sphere::new(
         material::Material::disney(core::Vec::new(0.0, 0.5, 1.0), 0.0),
@@ -19,21 +35,32 @@ pub fn main() {
         core::Mat::translation(&core::Vec::new(-25.0, 0.0, -50.0)),
         75.0);
     let s4 = geom::Sphere::new(
-        material::Material::disney(core::Vec::new(0.9, 0.1, 0.2), 0.0),
-        core::Mat::translation(&core::Vec::new(6.0, -8.0, -100.0)),
+        // material::Material::disney(core::Vec::new(0.9, 0.1, 0.2), 0.0),
+        material::Material::specTransTest(),
+        core::Mat::translation(&core::Vec::new(6.0, -10.0, -90.0)),
         4.0);
 
     let mut prims: Vec<Box<geom::Prim>> = vec![
             Box::new(s1), Box::new(s2), Box::new(s3), Box::new(s4)];
     for i in 0..20usize {
+        let color = core::Vec::new(
+                if i % 2 == 0 { 0.9 } else { 0.2 },
+                if i % 3 == 0 { 0.9 } else { 0.2 },
+                if i % 5 == 0 { 0.9 } else { 0.2 }
+        );
         prims.push(Box::new(geom::Sphere::new(
-            material::Material::disney(core::Vec::new(0.9, 0.1, 0.2), 0.0),
+            material::Material::disney(color, 0.0),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, 12.0, -100.0)),
             1.8)));
     }
     for i in 0..20usize {
+        let color = core::Vec::new(
+                if i % 2 == 0 { 0.9 } else { 0.2 },
+                if i % 3 == 0 { 0.9 } else { 0.2 },
+                if i % 5 == 0 { 0.9 } else { 0.2 }
+        );
         prims.push(Box::new(geom::Sphere::new(
-            material::Material::disney(core::Vec::new(0.9, 0.1, 0.2), 1.0),
+            material::Material::disney(color, 1.0),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, -12.0, -100.0)),
             1.8)));
     }

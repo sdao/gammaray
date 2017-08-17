@@ -216,44 +216,33 @@ impl Vec {
     }
 
     /**
-     * Same as GLSL reflect.
-     * See <https://www.opengl.org/sdk/docs/man4/html/reflect.xhtml>.
-     *
-     * @param I the incoming vector to reflect
-     * @param N the normal at the surface over which to reflect
-     * @returns the outgoing reflection vector
+     * Reflects a vector over a surface normal. The original and reflected vectors both
+     * point away from the surface. (This produces the opposite result of GLSL reflect.)
      */
     pub fn reflect(&self, n: &Vec) -> Vec {
         let k = 2.0 * n.dot(self);
         Self::new(
-            self.x - n.x * k,
-            self.y - n.y * k,
-            self.z - n.z * k)
+            n.x * k - self.x,
+            n.y * k - self.y,
+            n.z * k - self.z)
     }
 
     /**
-     * Same as GLSL refract.
-     * See <https://www.opengl.org/sdk/docs/man4/html/refract.xhtml>.
-     *
-     * @param I   the incoming vector to refract
-     * @param N   the normal at the surface to refract across;
-     *            the normal points from the transmitting medium towards the
-     *            incident medium
-     * @param eta the ratio of the incoming IOR over the transmitting IOR
-     * @returns   the outgoing refraction vector
+     * Refracts a vector over a surface with the given angle and eta (IOR). The original and
+     * refracted vectors both point away from the surface. (This produces a different result
+     * from GLSL refract.)
      */
     pub fn refract(&self, n: &Vec, eta: f32) -> Vec {
-      let d = n.dot(self);
-      let k = 1.0 - eta * eta * (1.0 - d * d);
-      if k < 0.0 {
-          Self::zero()
-      } else {
-          let k = eta * d + f32::sqrt(k);
-          Self::new(
-              self.x * eta - n.x * k,
-              self.y * eta - n.y * k,
-              self.z * eta - n.z * k)
-      }
+        let cos_theta_in = n.dot(self);
+        let sin2_theta_in = f32::max(0.0, 1.0 - cos_theta_in * cos_theta_in);
+        let sin2_theta_trans = eta * eta * sin2_theta_in;
+        if sin2_theta_trans >= 1.0 {
+            Self::zero()
+        }
+        else {
+            let cos_theta_trans = f32::sqrt(1.0 - sin2_theta_trans);
+            &(-eta * self) + &((eta * cos_theta_in - cos_theta_trans) * n)
+        }
     }
 
     pub fn to_rgba8(&self) -> [u8; 4] {

@@ -39,12 +39,17 @@ impl Material {
         }
     }
     /// Creates a material with lobes that form the Disney principled BSSRDF shader.
+    /// Burley's 2012 SIGGRAPH course notes presents the basic BRDF:
+    /// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
+    /// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
+    /// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
     pub fn disney(base_color: core::Vec, specular: f32) -> Material {
         let roughness = 0.05;
         let metallic = 0.5;
         let ior = 1.5;
         let specular_tint = 0.4;
-        let diffuse_weight = 1.0 - metallic;
+        let spec_trans = 0.5;
+        let diffuse_weight = (1.0 - metallic) * (1.0 - spec_trans);
         Material {
             // base_color: base_color,
             // incandescence: incandescence,
@@ -67,6 +72,18 @@ impl Material {
                 Box::new(lobes::DisneyRetroRefl::new(&base_color * diffuse_weight, roughness)),
                 Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior, specular,
                         specular_tint, metallic)),
+            ]
+        }
+    }
+
+    pub fn specTransTest() -> Material {
+        Material {
+            display: core::Vec::red(),
+            light: Box::new(lights::NullLight {}),
+            lobes: vec![
+                Box::new(lobes::DisneySpecularRefl::new(core::Vec::one(), 0.0, 1.5, 1.0,
+                        0.0, 0.0)),
+                Box::new(lobes::DisneySpecularTrans::new(core::Vec::one(), 0.0, 1.5))
             ]
         }
     }
