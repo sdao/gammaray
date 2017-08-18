@@ -119,15 +119,15 @@ pub struct DisneySpecularRefl {
 
 impl DisneySpecularRefl {
     pub fn new(
-            color: core::Vec, roughness: f32, ior: f32, specular: f32, specular_tint: f32,
-            metallic: f32) -> DisneySpecularRefl
+            color: core::Vec, roughness: f32, ior: f32,
+            specular_tint: f32, metallic: f32) -> DisneySpecularRefl
     {
         DisneySpecularRefl::new_aniso(
-                color, roughness, 0.0, ior, specular, specular_tint, metallic)
+                color, roughness, 0.0, ior, specular_tint, metallic)
     }
 
     pub fn new_aniso(
-            color: core::Vec, roughness: f32, anisotropic: f32, ior: f32, specular: f32,
+            color: core::Vec, roughness: f32, anisotropic: f32, ior: f32,
             specular_tint: f32, metallic: f32) -> DisneySpecularRefl
     {
         // XXX: We don't actually have proper tangents on surfaces, so anisotropy isn't going
@@ -135,8 +135,7 @@ impl DisneySpecularRefl {
         let ior_adjusted = f32::max(ior, 1.01);
         DisneySpecularRefl {
             microfacet: util::GgxDistribution::new(roughness, anisotropic),
-            fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular, specular_tint,
-                    metallic)
+            fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular_tint, metallic)
         }
     }
 }

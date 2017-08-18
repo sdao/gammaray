@@ -43,9 +43,9 @@ impl Material {
     /// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
     /// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
     /// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
-    pub fn disney(base_color: core::Vec, specular: f32, specular_trans: f32, roughness: f32, metallic: f32) -> Material {
+    pub fn disney(base_color: core::Vec, specular_trans: f32, roughness: f32, metallic: f32) -> Material {
         // XXX specular needs to come from IOR.
-        let ior = 1.5;
+        let ior = 1.8; // 1.0 - least shiny, ~2.0 - most shiny
         let specular_tint = 0.0;
         let diffuse_weight = (1.0 - metallic) * (1.0 - specular_trans);
 
@@ -60,7 +60,7 @@ impl Material {
 
         // Specular reflection
         {
-            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior, specular,
+            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior,
                             specular_tint, metallic)))
         }
 
@@ -99,7 +99,7 @@ impl Material {
             display: core::Vec::red(),
             light: Box::new(lights::NullLight {}),
             lobes: vec![
-                Box::new(lobes::DisneySpecularRefl::new(core::Vec::one(), 0.0, 1.5, 1.0,
+                Box::new(lobes::DisneySpecularRefl::new(core::Vec::one(), 0.0, 1.5,
                         0.0, 0.0)),
                 Box::new(lobes::DisneySpecularTrans::new(core::Vec::one(), 0.0, 1.5))
             ]
