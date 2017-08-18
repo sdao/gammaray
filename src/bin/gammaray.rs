@@ -23,7 +23,7 @@ pub fn main() {
 
     let c = core::Camera::default();
     let s1 = geom::Sphere::new(
-        material::Material::disney(core::Vec::new(0.0, 0.5, 1.0), 0.0),
+        material::Material::disney(core::Vec::new(0.0, 0.5, 1.0), 0.0, 0.0, 0.5, 0.5),
         core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
         7.0);
     let s2 = geom::Sphere::new(
@@ -31,12 +31,12 @@ pub fn main() {
         core::Mat::translation(&core::Vec::new(12.0, 3.0, -90.0)),
         5.0);
     let s3 = geom::Sphere::new(
-        material::Material::disney(core::Vec::new(0.5, 0.9, 0.0), 0.0),
+        material::Material::disney(core::Vec::new(0.5, 0.9, 0.0), 0.0, 0.0, 0.5, 0.5),
         core::Mat::translation(&core::Vec::new(-25.0, 0.0, -50.0)),
         75.0);
     let s4 = geom::Sphere::new(
-        // material::Material::disney(core::Vec::new(0.9, 0.1, 0.2), 0.0),
-        material::Material::specTransTest(),
+        material::Material::disney(core::Vec::new(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, 0.0),
+        // material::Material::specTransTest(),
         core::Mat::translation(&core::Vec::new(6.0, -10.0, -90.0)),
         4.0);
 
@@ -49,7 +49,7 @@ pub fn main() {
                 if i % 5 == 0 { 0.9 } else { 0.2 }
         );
         prims.push(Box::new(geom::Sphere::new(
-            material::Material::disney(color, 0.0),
+            material::Material::disney(color, 0.0, 0.0, 0.5, 0.5),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, 12.0, -100.0)),
             1.8)));
     }
@@ -60,7 +60,7 @@ pub fn main() {
                 if i % 5 == 0 { 0.9 } else { 0.2 }
         );
         prims.push(Box::new(geom::Sphere::new(
-            material::Material::disney(color, 1.0),
+            material::Material::disney(color, 1.0, 0.0, 0.5, 0.0),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, -12.0, -100.0)),
             1.8)));
     }

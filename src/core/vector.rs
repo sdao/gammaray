@@ -58,6 +58,10 @@ impl Vec {
         Self::new(self.x / length, self.y / length, self.z / length)
     }
 
+    pub fn sqrt(&self) -> Vec {
+        Self::new(f32::sqrt(self.x), f32::sqrt(self.y), f32::sqrt(self.z))
+    }
+
     /**
      * Determines whether a vec's magnitude is zero, within a small epsilon.
      */

@@ -40,6 +40,7 @@ pub fn fresnel_dielectric(cos_theta_in: f32, ior: f32) -> f32 {
     }
 }
 
+// The Disney Fresnel is a blend of dielectric and metallic models.
 pub struct DisneyFresnel {
     r0: core::Vec,
     ior: f32,
@@ -89,8 +90,8 @@ pub struct GgxDistribution {
 impl GgxDistribution {
     pub fn new(roughness: f32, anisotropic: f32) -> GgxDistribution {
         let aspect = f32::sqrt(1.0 - anisotropic * 0.9);
-        let ax = f32::max(0.001, f32::sqrt(roughness) / aspect);
-        let ay = f32::max(0.001, f32::sqrt(roughness) * aspect);
+        let ax = f32::max(0.001, roughness * roughness / aspect);
+        let ay = f32::max(0.001, roughness * roughness * aspect);
         GgxDistribution {ax: ax, ay: ay}
     }
 

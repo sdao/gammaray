@@ -43,13 +43,36 @@ impl Material {
     /// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
     /// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
     /// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
-    pub fn disney(base_color: core::Vec, specular: f32) -> Material {
-        let roughness = 0.05;
-        let metallic = 0.5;
+    pub fn disney(base_color: core::Vec, specular: f32, specular_trans: f32, roughness: f32, metallic: f32) -> Material {
+        // XXX specular needs to come from IOR.
         let ior = 1.5;
-        let specular_tint = 0.4;
-        let spec_trans = 0.5;
-        let diffuse_weight = (1.0 - metallic) * (1.0 - spec_trans);
+        let specular_tint = 0.0;
+        let diffuse_weight = (1.0 - metallic) * (1.0 - specular_trans);
+
+        let mut lobes_list = std::vec::Vec::<Box<lobes::Lobe>>::new();
+        
+        // Diffuse
+        if diffuse_weight > 0.0 {
+            let diffuse_color = &base_color * diffuse_weight;
+            lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(diffuse_color)));
+            lobes_list.push(Box::new(lobes::DisneyRetroRefl::new(diffuse_color, roughness)));
+        }
+
+        // Specular reflection
+        {
+            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior, specular,
+                            specular_tint, metallic)))
+        }
+
+        // Specular transmission
+        if specular_trans > 0.0 {
+            // PBRT suggests that we take scale up the base color to its sqrt
+            // for art-direction purposes; it makes it so that light that enters and exits
+            // will have the base color instead of being darker.
+            let specular_trans_color = specular_trans * &base_color.sqrt();
+            lobes_list.push(Box::new(lobes::DisneySpecularTrans::new(specular_trans_color, roughness, ior)));
+        }
+
         Material {
             // base_color: base_color,
             // incandescence: incandescence,
@@ -67,12 +90,7 @@ impl Material {
             // scatter_distance: core::Vec::zero(),
             display: base_color,
             light: Box::new(lights::NullLight {}),
-            lobes: vec![
-                Box::new(lobes::DisneyDiffuseRefl::new(&base_color * diffuse_weight)),
-                Box::new(lobes::DisneyRetroRefl::new(&base_color * diffuse_weight, roughness)),
-                Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior, specular,
-                        specular_tint, metallic)),
-            ]
+            lobes: lobes_list
         }
     }
 
