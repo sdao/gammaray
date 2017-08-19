@@ -10,6 +10,10 @@ pub fn fresnel_schlick_weight(cos_theta: f32) -> f32 {
     x * x * x * x * x
 }
 
+pub fn fresnel_schlick(cos_theta: f32, r0: core::Vec) -> core::Vec {
+    r0.lerp(&core::Vec::one(), fresnel_schlick_weight(cos_theta))
+}
+
 pub fn fresnel_schlick_r0(ior: f32) -> f32 {
     ((ior - 1.0) * (ior - 1.0)) / ((ior + 1.0) * (ior + 1.0))
 }
@@ -18,10 +22,10 @@ pub fn fresnel_dielectric(cos_theta_in: f32, ior: f32) -> f32 {
     // Potentially swap indices of refraction.
     let entering = cos_theta_in > 0.0;
     let (eta_i, eta_t, cos_theta_in_clamped) = if entering {
-        (ior, 1.0, core::clamp_unit(cos_theta_in))
+        (1.0, ior, core::clamp_unit(cos_theta_in))
     }
     else {
-        (1.0, ior, core::clamp_unit(-cos_theta_in))
+        (ior, 1.0, core::clamp_unit(-cos_theta_in))
     };
 
     // Compute cos_theta_trans using Snell's law.
@@ -58,15 +62,14 @@ impl DisneyFresnel {
     {
         let lume = color.luminance();
         let ctint = if lume > 0.0 { &color / lume } else { core::Vec::one() };
-        let spec_color = fresnel_schlick_r0(ior) * &core::Vec::one().lerp(&ctint, specular_tint);
+        let spec_color = /*fresnel_schlick_r0(ior) * &*/core::Vec::one().lerp(&ctint, specular_tint);
 
         DisneyFresnel {color: color, spec_color: spec_color, ior: ior, metallic: metallic}
     }
 
     pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
-        let schlick = fresnel_schlick_weight(cos_theta);
-        let dielectric = self.spec_color.lerp(&core::Vec::one(), schlick);
-        let conductor = self.color.lerp(&core::Vec::one(), schlick);
+        let dielectric = &self.spec_color * fresnel_dielectric(cos_theta, self.ior);
+        let conductor = fresnel_schlick(cos_theta, self.color);
         dielectric.lerp(&conductor, self.metallic)
     }
 }
