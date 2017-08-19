@@ -23,7 +23,7 @@ pub fn main() {
 
     let c = core::Camera::default();
     let s1 = geom::Sphere::new(
-        material::Material::disney(core::Vec::new(0.0, 0.5, 1.0), 0.0, 0.5, 0.5),
+        material::Material::disney(core::Vec::new(0.0, 0.5, 1.0), 0.0, 0.5, 1.0),
         core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
         7.0);
     let s2 = geom::Sphere::new(
@@ -31,7 +31,7 @@ pub fn main() {
         core::Mat::translation(&core::Vec::new(12.0, 3.0, -90.0)),
         5.0);
     let s3 = geom::Sphere::new(
-        material::Material::disney(core::Vec::new(0.5, 0.9, 0.0), 0.0, 0.5, 0.5),
+        material::Material::disney(core::Vec::new(0.5, 0.9, 0.0), 0.0, 0.5, 1.0),
         core::Mat::translation(&core::Vec::new(-25.0, 0.0, -50.0)),
         75.0);
     let s4 = geom::Sphere::new(

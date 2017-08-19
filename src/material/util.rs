@@ -11,7 +11,6 @@ pub fn fresnel_schlick_weight(cos_theta: f32) -> f32 {
 }
 
 pub fn fresnel_schlick_r0(ior: f32) -> f32 {
-    println!("ior={}, r0={}", ior, ((ior - 1.0) * (ior - 1.0)) / ((ior + 1.0) * (ior + 1.0)));
     ((ior - 1.0) * (ior - 1.0)) / ((ior + 1.0) * (ior + 1.0))
 }
 
@@ -47,8 +46,10 @@ pub fn fresnel_dielectric(cos_theta_in: f32, ior: f32) -> f32 {
 
 // The Disney Fresnel is a blend of dielectric and metallic models.
 pub struct DisneyFresnel {
-    r0: core::Vec,
+    color: core::Vec,
+    spec_color: core::Vec,
     ior: f32,
+    metallic: f32,
 }
 
 impl DisneyFresnel {
@@ -57,16 +58,16 @@ impl DisneyFresnel {
     {
         let lume = color.luminance();
         let ctint = if lume > 0.0 { &color / lume } else { core::Vec::one() };
-        //               |-------------| This part corresponds to the r0 calculation in Schlick.
         let spec_color = fresnel_schlick_r0(ior) * &core::Vec::one().lerp(&ctint, specular_tint);
-        let cspec0 = spec_color.lerp(&color, metallic);
 
-        /// XXX: ior unused because the 2012 Disney model doesn't use it (uses specular instead).
-        DisneyFresnel { r0: cspec0, ior: ior }
+        DisneyFresnel {color: color, spec_color: spec_color, ior: ior, metallic: metallic}
     }
 
     pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
-        self.r0.lerp(&core::Vec::one(), fresnel_schlick_weight(cos_theta))
+        let schlick = fresnel_schlick_weight(cos_theta);
+        let dielectric = self.spec_color.lerp(&core::Vec::one(), schlick);
+        let conductor = self.color.lerp(&core::Vec::one(), schlick);
+        dielectric.lerp(&conductor, self.metallic)
     }
 }
 
