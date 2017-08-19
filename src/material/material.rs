@@ -43,67 +43,8 @@ impl Material {
     /// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
     /// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
     /// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
-    pub fn disney(base_color: core::Vec, specular_trans: f32, roughness: f32, metallic: f32) -> Material {
-        // XXX specular needs to come from IOR.
-        let ior = 1.8; // 1.0 - least shiny, ~2.0 - most shiny
-        let specular_tint = 0.0;
-        let diffuse_weight = (1.0 - metallic) * (1.0 - specular_trans);
-        let trans_weight = (1.0 - metallic) * specular_trans;
-        let mut lobes_list = std::vec::Vec::<Box<lobes::Lobe>>::new();
-        
-        // Diffuse
-        if diffuse_weight > 0.0 {
-            let diffuse_color = &base_color * diffuse_weight;
-            lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(diffuse_color)));
-            lobes_list.push(Box::new(lobes::DisneyRetroRefl::new(diffuse_color, roughness)));
-        }
-
-        // Specular reflection
-        {
-            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(base_color, roughness, ior,
-                            specular_tint, metallic)))
-        }
-
-        // Specular transmission
-        if trans_weight > 0.0 {
-            // PBRT suggests that we take scale up the base color to its sqrt
-            // for art-direction purposes; it makes it so that light that enters and exits
-            // will have the base color instead of being darker.
-            let specular_trans_color = trans_weight * &base_color.sqrt();
-            lobes_list.push(Box::new(lobes::DisneySpecularTrans::new(specular_trans_color, roughness, ior)));
-        }
-
-        Material {
-            // base_color: base_color,
-            // incandescence: incandescence,
-            //
-            // metallic: 0.0,
-            // specular_tint: 0.0,
-            // roughness: 1.0,
-            // anisotropic: 0.0,
-            // sheen: 0.0,
-            // sheen_tint: 0.0,
-            // clearcoat: 0.0,
-            // clearcoat_gloss: 0.0,
-            // ior: 0.0,
-            // spec_trans: 0.0,
-            // scatter_distance: core::Vec::zero(),
-            display: base_color,
-            light: Box::new(lights::NullLight {}),
-            lobes: lobes_list
-        }
-    }
-
-    pub fn specTransTest() -> Material {
-        Material {
-            display: core::Vec::red(),
-            light: Box::new(lights::NullLight {}),
-            lobes: vec![
-                Box::new(lobes::DisneySpecularRefl::new(core::Vec::one(), 0.0, 1.5,
-                        0.0, 0.0)),
-                Box::new(lobes::DisneySpecularTrans::new(core::Vec::one(), 0.0, 1.5))
-            ]
-        }
+    pub fn disney() -> DisneyMaterialBuilder {
+        DisneyMaterialBuilder::new()
     }
 
     pub fn mirror() -> Material {
@@ -171,5 +112,94 @@ impl Material {
 
     pub fn light(&self, i: &core::Vec) -> core::Vec {
         self.light.l(i)
+    }
+}
+
+pub struct DisneyMaterialBuilder {
+    _base_color: core::Vec,
+    _roughness: f32,
+    _ior: f32,
+    _metallic: f32,
+    _specular_trans: f32,
+    _specular_tint: f32,
+}
+
+impl DisneyMaterialBuilder {
+    pub fn new() -> DisneyMaterialBuilder {
+        DisneyMaterialBuilder {
+            _base_color: core::Vec::one(),
+            _roughness: 0.5,
+            _ior: 1.5,
+            _metallic: 0.0,
+            _specular_trans: 0.0,
+            _specular_tint: 0.0,
+        }
+    }
+
+    pub fn build(&self) -> Material {
+        // Combo of three models: diffuse_weight + trans_weight + metallic = 1.0
+        let diffuse_weight = (1.0 - self._metallic) * (1.0 - self._specular_trans);
+        let trans_weight = (1.0 - self._metallic) * self._specular_trans;
+        let mut lobes_list = std::vec::Vec::<Box<lobes::Lobe>>::new();
+        
+        // Diffuse
+        if diffuse_weight > 0.0 {
+            let diffuse_color = &self._base_color * diffuse_weight;
+            lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(diffuse_color)));
+            lobes_list.push(Box::new(lobes::DisneyRetroRefl::new(diffuse_color, self._roughness)));
+        }
+
+        // Specular reflection
+        if self._ior > 1.0 {
+            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(
+                    self._base_color, self._roughness, self._ior, self._specular_tint,
+                    self._metallic)))
+        }
+
+        // Specular transmission
+        if trans_weight > 0.0 {
+            // PBRT suggests that we take scale up the base color to its sqrt
+            // for art-direction purposes; it makes it so that light that enters and exits
+            // will have the base color instead of being darker.
+            let specular_trans_color = trans_weight * &self._base_color.sqrt();
+            lobes_list.push(Box::new(lobes::DisneySpecularTrans::new(
+                    specular_trans_color, self._roughness, self._ior)));
+        }
+
+        Material {
+            display: self._base_color,
+            light: Box::new(lights::NullLight {}),
+            lobes: lobes_list
+        }
+    }
+
+    pub fn base_color(&mut self, val: core::Vec) -> &mut Self {
+        self._base_color = val;
+        self
+    }
+
+    pub fn roughness(&mut self, val: f32) -> &mut Self {
+        self._roughness = val;
+        self
+    }
+
+    pub fn ior(&mut self, val: f32) -> &mut Self {
+        self._ior = val;
+        self
+    }
+
+    pub fn metallic(&mut self, val: f32) -> &mut Self {
+        self._metallic = val;
+        self
+    }
+
+    pub fn specular_trans(&mut self, val: f32) -> &mut Self {
+        self._specular_trans = val;
+        self
+    }
+
+    pub fn specular_tint(&mut self, val: f32) -> &mut Self {
+        self._specular_tint = val;
+        self
     }
 }
