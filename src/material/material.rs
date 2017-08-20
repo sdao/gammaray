@@ -38,14 +38,6 @@ impl Material {
             lobes: vec![]
         }
     }
-    /// Creates a material with lobes that form the Disney principled BSSRDF shader.
-    /// Burley's 2012 SIGGRAPH course notes presents the basic BRDF:
-    /// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
-    /// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
-    /// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
-    pub fn disney() -> DisneyMaterialBuilder {
-        DisneyMaterialBuilder::new()
-    }
 
     pub fn mirror() -> Material {
         Material {
@@ -55,6 +47,12 @@ impl Material {
                 Box::new(lobes::PerfectMirror::new())
             ]
         }
+    }
+
+    /// Generates a builder to construct a Disney principled material.
+    /// You'll need to call build() on the builder to finish building.
+    pub fn disney() -> DisneyMaterialBuilder {
+        DisneyMaterialBuilder::new()
     }
 
     pub fn display_color(&self) -> &core::Vec {
@@ -122,8 +120,15 @@ pub struct DisneyMaterialBuilder {
     _metallic: f32,
     _specular_trans: f32,
     _specular_tint: f32,
+    _sheen: f32,
+    _sheen_tint: f32
 }
 
+/// Creates a material with lobes that form the Disney principled BSSRDF shader.
+/// Burley's 2012 SIGGRAPH course notes presents the basic BRDF:
+/// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
+/// Burley's 2015 SIGGRAPH course notes extends it to transmissive effects:
+/// http://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf
 impl DisneyMaterialBuilder {
     pub fn new() -> DisneyMaterialBuilder {
         DisneyMaterialBuilder {
@@ -133,6 +138,8 @@ impl DisneyMaterialBuilder {
             _metallic: 0.0,
             _specular_trans: 0.0,
             _specular_tint: 0.0,
+            _sheen: 0.0,
+            _sheen_tint: 0.0,
         }
     }
 
@@ -200,6 +207,16 @@ impl DisneyMaterialBuilder {
 
     pub fn specular_tint(&mut self, val: f32) -> &mut Self {
         self._specular_tint = val;
+        self
+    }
+
+    pub fn sheen(&mut self, val: f32) -> &mut Self {
+        self._sheen = val;
+        self
+    }
+
+    pub fn sheen_tint(&mut self, val: f32) -> &mut Self {
+        self._sheen_tint = val;
         self
     }
 }

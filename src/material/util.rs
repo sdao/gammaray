@@ -60,10 +60,7 @@ impl DisneyFresnel {
     pub fn new(ior: f32, color: core::Vec, specular_tint: f32, metallic: f32)
         -> DisneyFresnel
     {
-        let lume = color.luminance();
-        let ctint = if lume > 0.0 { &color / lume } else { core::Vec::one() };
-        let spec_color = /*fresnel_schlick_r0(ior) * &*/core::Vec::one().lerp(&ctint, specular_tint);
-
+        let spec_color = core::Vec::one().lerp(&color.tint(), specular_tint);
         DisneyFresnel {color: color, spec_color: spec_color, ior: ior, metallic: metallic}
     }
 

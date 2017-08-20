@@ -9,18 +9,6 @@ use rand::{Rng, SeedableRng};
 use material::Lobe;
 
 pub fn main() {
-    // let mut x = rand::thread_rng();
-    // let mut y = rand::XorShiftRng::from_seed([x.gen(), x.gen(), x.gen(), x.gen()]);
-    // let t = material::DisneySpecularTrans::new(core::Vec::one(), 0.0, 1.0);
-    // let mut pdfs = 0.0;
-    // for i in 0..1000 {
-    //     let s = t.sample_f(&core::Vec::new(-0.2, -0.2, -0.8).normalized(), &mut y);
-    //     println!("{} {} {}", s.result, s.outgoing, s.pdf);
-    //     pdfs += s.pdf;
-    // }
-    // println!("pdf avg {}", pdfs / 100.0);
-    // return;
-
     let c = core::Camera::default();
     let s1 = geom::Sphere::new(
         material::Material::disney()

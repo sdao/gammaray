@@ -249,7 +249,7 @@ impl Lobe for DisneySpecularTrans {
         debug_assert!(o.is_finite());
         debug_assert!(half.is_finite(), "{} {} {}", half_unnorm, half, self.ior);
 
-        let fresnel = core::Vec::zero();//self.fresnel.fresnel(o.dot(&half));
+        let fresnel = self.fresnel.fresnel(o.dot(&half));
         let d = self.microfacet.d(&half);
         let g = self.microfacet.g(i, o);
 
