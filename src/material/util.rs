@@ -80,8 +80,22 @@ impl FresnelDielectric {
         FresnelDielectric {ior: ior}
     }
 
-    pub fn fresnel(&self, cos_theta_in: f32) -> core::Vec {
-        &core::Vec::one() * fresnel_dielectric(cos_theta_in, self.ior)
+    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+        &core::Vec::one() * fresnel_dielectric(cos_theta, self.ior)
+    }
+}
+
+pub struct FresnelSchlick {
+    pub r0: core::Vec,
+}
+
+impl FresnelSchlick {
+    pub fn new(r0: core::Vec) -> FresnelSchlick {
+        FresnelSchlick {r0: r0}
+    }
+
+    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+        fresnel_schlick(cos_theta, self.r0)
     }
 }
 
@@ -113,7 +127,7 @@ impl GgxDistribution {
         }
     }
 
-    pub fn lambda(&self, v: &core::Vec) -> f32 {
+    fn lambda(&self, v: &core::Vec) -> f32 {
         let abs_tan_theta = f32::abs(v.tan_theta());
         if abs_tan_theta.is_finite() {
             let alpha = f32::sqrt(
@@ -126,7 +140,7 @@ impl GgxDistribution {
         }
     }
 
-    pub fn g1(&self, v: &core::Vec) -> f32 {
+    fn g1(&self, v: &core::Vec) -> f32 {
         1.0 / (1.0 + self.lambda(v))
     }
 
@@ -214,5 +228,61 @@ impl GgxDistribution {
         else {
             self.d(half) * self.g1(i) * f32::abs(i.dot(half)) / f32::abs(cos_theta)
         }
+    }
+}
+
+/// This is derived from the equations in the Disney BRDF paper:
+/// http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
+pub struct Gtr1Distribution {
+    alpha: f32
+}
+
+impl Gtr1Distribution {
+    pub fn new(clearcoat_gloss: f32) -> Gtr1Distribution {
+        Gtr1Distribution {
+            alpha: core::lerp(0.1, 0.001, clearcoat_gloss)
+        }
+    }
+
+    pub fn d(&self, half: &core::Vec) -> f32 {
+        let alpha2 = self.alpha * self.alpha;
+        let cos_theta = half.abs_cos_theta();
+        (alpha2 - 1.0) /
+                (std::f32::consts::PI *
+                f32::ln(alpha2) *
+                (1.0 + (alpha2 - 1.0) * cos_theta * cos_theta))
+    }
+
+    fn lambda(&self, v: &core::Vec) -> f32 {
+        let alpha_g = 0.25; // According to Disney's BRDF, the Gr term uses alpha=0.25.
+        let cos_theta = v.abs_cos_theta();
+
+        let alpha2 = alpha_g * alpha_g;
+        let cos_theta2 = cos_theta * cos_theta;
+
+        1.0 / (cos_theta + f32::sqrt(alpha2 + cos_theta2 - (alpha2 * cos_theta2)))
+    }
+
+    pub fn g(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+        1.0 / (1.0 + self.lambda(i) + self.lambda(o))
+    }
+
+    pub fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec {
+        let alpha2 = self.alpha * self.alpha;
+        let phi = 2.0 * std::f32::consts::PI * rng.next_f32();
+        let cos_theta = f32::sqrt(core::clamp_unit(
+                (1.0 - f32::powf(alpha2, 1.0 - rng.next_f32()) / (1.0 - alpha2))));
+        let h = core::Vec::from_spherical(cos_theta, phi);
+        if h.is_local_same_hemisphere(i) {
+            h
+        }
+        else {
+            -&h
+        }
+    }
+
+    pub fn pdf(&self, _: &core::Vec, half: &core::Vec) -> f32 {
+        // Sampling exactly follows GTR1, so the pdf is the same as the value.
+        self.d(half)
     }
 }

@@ -54,7 +54,9 @@ pub fn main() {
             material::Material::disney()
                     .base_color(color)
                     .roughness(0.5)
-                    .metallic(0.5)
+                    .metallic(1.0)
+                    .clearcoat(1.0)
+                    .clearcoat_gloss(1.0)
                     .build(),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, 12.0, -100.0)),
             1.8)));

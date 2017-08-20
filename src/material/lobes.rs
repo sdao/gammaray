@@ -337,6 +337,79 @@ impl Lobe for DisneySpecularTrans {
     }
 }
 
+pub struct DisneyClearcoatRefl {
+    microfacet: util::Gtr1Distribution,
+    fresnel: util::FresnelSchlick,
+    amount: f32,
+}
+
+impl DisneyClearcoatRefl {
+    pub fn new(clearcoat: f32, clearcoat_gloss: f32) -> DisneyClearcoatRefl {
+        // Note: Disney BRDF: (ior = 1.5 -> F0 = 0.04).
+        // Disney also scales the clearcoat amount by 0.25.
+        DisneyClearcoatRefl {
+            microfacet: util::Gtr1Distribution::new(clearcoat_gloss),
+            fresnel: util::FresnelSchlick {r0: 0.04 * &core::Vec::one()},
+            amount: 0.25 * clearcoat
+        }
+    }
+}
+
+impl Lobe for DisneyClearcoatRefl {
+    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        let cos_theta_in = i.abs_cos_theta();
+        let cos_theta_out = o.abs_cos_theta();
+        let half_unnorm = i + o;
+        if half_unnorm.is_exactly_zero() || cos_theta_in == 0.0 || cos_theta_out == 0.0 {
+            return core::Vec::zero();
+        }
+
+        let half = half_unnorm.normalized();
+        let fresnel = self.fresnel.fresnel(o.dot(&half));
+        let d = self.microfacet.d(&half);
+        let g = self.microfacet.g(i, o);
+        &fresnel * (self.amount * d * g / (4.0 * cos_theta_out * cos_theta_in))
+    }
+
+    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+        if !i.is_local_same_hemisphere(o) {
+            0.0
+        }
+        else {
+            let half = (i + o).normalized();
+            self.microfacet.pdf(i, &half) / (4.0 * i.dot(&half))
+        }
+    }
+
+    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+        // Sample microfacet orientation (half) and reflected direction (o).
+        if i.z == 0.0 {
+            LobeSample::zero()
+        }
+        else {
+            let half = self.microfacet.sample_half(i, rng);
+            let o = i.reflect(&half);
+            if !i.is_local_same_hemisphere(&o) {
+                LobeSample::zero()
+            }
+            else {
+                // Compute PDF of outoing vector for microfacet reflection.
+                let result = self.f(i, &o);
+                let pdf = self.microfacet.pdf(i, &half) / (4.0 * i.dot(&half));
+                LobeSample {
+                    result: result,
+                    outgoing: o,
+                    pdf: pdf
+                }
+            }
+        }
+    }
+
+    fn kind(&self) -> LobeKind {
+        LOBE_GLOSSY | LOBE_REFLECTION
+    }
+}
+
 pub struct PerfectMirror {
 }
 

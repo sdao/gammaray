@@ -105,7 +105,9 @@ pub struct DisneyMaterialBuilder {
     _specular_trans: f32,
     _specular_tint: f32,
     _sheen: f32,
-    _sheen_tint: f32
+    _sheen_tint: f32,
+    _clearcoat: f32,
+    _clearcoat_gloss: f32,
 }
 
 /// Creates a material with lobes that form the Disney principled BSSRDF shader.
@@ -123,7 +125,9 @@ impl DisneyMaterialBuilder {
             _specular_trans: 0.0,
             _specular_tint: 0.0,
             _sheen: 0.0,
-            _sheen_tint: 0.0,
+            _sheen_tint: 0.5,
+            _clearcoat: 0.0,
+            _clearcoat_gloss: 0.1,
         }
     }
 
@@ -145,6 +149,12 @@ impl DisneyMaterialBuilder {
             lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(
                     self._base_color, self._roughness, self._ior, self._specular_tint,
                     self._metallic)))
+        }
+
+        // Clearcoat (second specular lobe)
+        if self._clearcoat > 0.0 {
+            lobes_list.push(Box::new(lobes::DisneyClearcoatRefl::new(
+                    self._clearcoat, self._clearcoat_gloss)));
         }
 
         // Specular transmission
@@ -201,6 +211,16 @@ impl DisneyMaterialBuilder {
 
     pub fn sheen_tint(&mut self, val: f32) -> &mut Self {
         self._sheen_tint = val;
+        self
+    }
+
+    pub fn clearcoat(&mut self, val: f32) -> &mut Self {
+        self._clearcoat = val;
+        self
+    }
+
+    pub fn clearcoat_gloss(&mut self, val: f32) -> &mut Self {
+        self._clearcoat_gloss = val;
         self
     }
 }

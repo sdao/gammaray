@@ -16,6 +16,13 @@ impl Vec {
         Vec {x: x, y: y, z: z}
     }
 
+    /// Computes a vector from spherical coordinates, with radius 1, inclination theta, and
+    /// azimuth phi.
+    pub fn from_spherical(cos_theta: f32, phi: f32) -> Vec {
+        let sin_theta = f32::sqrt(1.0 - cos_theta * cos_theta);
+        Self::new(sin_theta * f32::cos(phi), sin_theta * f32::sin(phi), cos_theta)
+    }
+
     pub fn zero() -> Vec { Self::new(0.0, 0.0, 0.0) }
     pub fn one() -> Vec { Self::new(1.0, 1.0, 1.0) }
 
