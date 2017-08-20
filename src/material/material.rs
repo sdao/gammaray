@@ -133,18 +133,11 @@ impl DisneyMaterialBuilder {
         let trans_weight = (1.0 - self._metallic) * self._specular_trans;
         let mut lobes_list = std::vec::Vec::<Box<lobes::Lobe>>::new();
         
-        // Diffuse
+        // Diffuse, retro-reflection, and sheen
         if diffuse_weight > 0.0 {
-            let diffuse_color = &self._base_color * diffuse_weight;
-            lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(diffuse_color)));
-            lobes_list.push(Box::new(lobes::DisneyRetroRefl::new(diffuse_color, self._roughness)));
-        }
-
-        // Sheen (OK to be additive on top of diffuse according to Burley)
-        let sheen_weight = diffuse_weight * self._sheen;
-        if sheen_weight > 0.0 {
-            lobes_list.push(Box::new(lobes::DisneySheenRefl::new(
-                    self._base_color, sheen_weight, self._sheen_tint)));
+            lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(
+                    self._base_color, self._roughness, self._sheen, self._sheen_tint,
+                    diffuse_weight)));
         }
 
         // Specular reflection

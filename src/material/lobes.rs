@@ -63,13 +63,21 @@ pub trait Lobe : Sync + Send {
     }
 }
 
+/// Implements diffuse, retro-reflection, and sheen for the Disney BRDF.
 pub struct DisneyDiffuseRefl {
     color: core::Vec,
+    sheen_color: core::Vec,
+    roughness: f32,
 }
 
 impl DisneyDiffuseRefl {
-    pub fn new(color: core::Vec) -> DisneyDiffuseRefl {
-        DisneyDiffuseRefl {color: color}
+    pub fn new(color: core::Vec, roughness: f32, sheen: f32, sheen_tint: f32, diffuse_weight: f32)
+        -> DisneyDiffuseRefl
+    {
+        let diffuse_color = &color * diffuse_weight;
+        let sheen_color = (sheen * diffuse_weight) *
+                &core::Vec::one().lerp(&color.tint(), sheen_tint);
+        DisneyDiffuseRefl {color: diffuse_color, sheen_color: sheen_color, roughness: roughness}
     }
 }
 
@@ -77,61 +85,24 @@ impl Lobe for DisneyDiffuseRefl {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
         let f_in = util::fresnel_schlick_weight(i.abs_cos_theta());
         let f_out = util::fresnel_schlick_weight(o.abs_cos_theta());
-        &self.color * (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out))
-    }
-}
-
-pub struct DisneyRetroRefl {
-    color: core::Vec,
-    roughness: f32
-}
-
-impl DisneyRetroRefl {
-    pub fn new(color: core::Vec, roughness: f32) -> DisneyRetroRefl {
-        DisneyRetroRefl {color: color, roughness: roughness}
-    }
-}
-
-impl Lobe for DisneyRetroRefl {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        let diffuse = &self.color *
+                (std::f32::consts::FRAC_1_PI * (1.0 - 0.5 * f_in) * (1.0 - 0.5 * f_out));
+        
         let half_unnorm = i + o;
         if half_unnorm.is_exactly_zero() {
-            return core::Vec::zero();
+            // Retro-reflection and sheen can't be computed.
+            return diffuse;
         }
 
         let half = half_unnorm.normalized();
         let cos_theta_d = o.dot(&half); // Note: could have used i here also.
         let r_r = 2.0 * self.roughness * cos_theta_d * cos_theta_d;
 
-        let f_in = util::fresnel_schlick_weight(i.abs_cos_theta());
-        let f_out = util::fresnel_schlick_weight(o.abs_cos_theta());
+        let retro = &self.color * (std::f32::consts::FRAC_1_PI * r_r
+                * (f_out + f_in + f_out * f_in * (r_r - 1.0)));
+        let sheen = &self.sheen_color * util::fresnel_schlick_weight(cos_theta_d);
 
-        &self.color * (std::f32::consts::FRAC_1_PI * r_r
-                * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
-    }
-}
-
-pub struct DisneySheenRefl {
-    sheen_color: core::Vec,
-}
-
-impl DisneySheenRefl {
-    pub fn new(color: core::Vec, sheen: f32, sheen_tint: f32) -> DisneySheenRefl {
-        let sheen_color = sheen * &core::Vec::one().lerp(&color.tint(), sheen_tint);
-        DisneySheenRefl {sheen_color: sheen_color}
-    }
-}
-
-impl Lobe for DisneySheenRefl {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
-        let half_unnorm = i + o;
-        if half_unnorm.is_exactly_zero() {
-            return core::Vec::zero();
-        }
-
-        let half = half_unnorm.normalized();
-        let cos_theta_d = o.dot(&half); // Note: could have used i here also.
-        &self.sheen_color * util::fresnel_schlick_weight(cos_theta_d)
+        return &diffuse + &(&retro + &sheen);
     }
 }
 
