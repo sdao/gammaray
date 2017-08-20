@@ -14,14 +14,15 @@ pub struct KernelResult {
 pub trait Kernel : Sync + Send {
     /// Computes an outgoing direction for the given incoming direction on the surface.
     /// The depth is given as a hint, e.g. for Russian roulette.
-    /// The normal of the intersection and a reference to the prim are provided for material
-    /// computations.
+    /// The surface properties at the intersection and a reference to the prim are provided for
+    /// material computations.
     /// The RNG should be re-used across bounces for performance reasons.
     /// Note that the incoming direction and outgoing directions should be assumed to be
     /// unit-length. Failure to maintain the unit-length invariant may cause rendering errors
     /// in other parts of the pipeline that assume that rays are unit-length.
-    fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-            prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult;
+    fn bounce(&self, depth: usize, incoming_direction: &core::Vec,
+            surface_props: &geom::SurfaceProperties, prim: &Box<geom::Prim>,
+            rng: &mut rand::XorShiftRng) -> KernelResult;
 }
 
 /// This is a kernel used for debugging; it encodes the bounce directions in the colors.
@@ -33,10 +34,12 @@ impl BounceKernel {
 }
 
 impl Kernel for BounceKernel {
-    fn bounce(&self, _: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng) -> KernelResult
+    fn bounce(&self, _: usize, incoming_direction: &core::Vec,
+        surface_props: &geom::SurfaceProperties, prim: &Box<geom::Prim>,
+        rng: &mut rand::XorShiftRng) -> KernelResult
     {
         let material = prim.material();
+        let normal = &surface_props.normal;
         let (tangent, binormal) = normal.coord_system();
         let incoming_local = (-incoming_direction).world_to_local(&tangent, &binormal, &normal);
         let sample = material.sample(&incoming_local, rng);
@@ -59,7 +62,7 @@ impl DisplayColorKernel {
 }
 
 impl Kernel for DisplayColorKernel {
-    fn bounce(&self, _: usize, _: &core::Vec, _: &core::Vec,
+    fn bounce(&self, _: usize, _: &core::Vec, _: &geom::SurfaceProperties,
         prim: &Box<geom::Prim>, _: &mut rand::XorShiftRng) -> KernelResult
     {
         KernelResult {
@@ -83,13 +86,14 @@ const RUSSIAN_ROULETTE_DEPTH: usize = 10;
 const RUSSIAN_ROULETTE_DEPTH_AGRESSIVE: usize = 20;
 
 impl Kernel for PathTracerKernel {
-    fn bounce(&self, depth: usize, incoming_direction: &core::Vec, normal: &core::Vec,
-        prim: &Box<geom::Prim>, rng: &mut rand::XorShiftRng)
-        -> KernelResult
+    fn bounce(&self, depth: usize, incoming_direction: &core::Vec,
+        surface_props: &geom::SurfaceProperties, prim: &Box<geom::Prim>,
+        rng: &mut rand::XorShiftRng) -> KernelResult
     {
         let material = prim.material();
 
         // Check for scattering (reflection/transmission).
+        let normal = &surface_props.normal;
         let (tangent, binormal) = normal.coord_system();
         let incoming_local = (-incoming_direction).world_to_local(&tangent, &binormal, &normal);
         let sample = material.sample(&incoming_local, rng);

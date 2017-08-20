@@ -47,9 +47,9 @@ impl Stage {
         while !throughput.is_exactly_zero() {
             let intersection = bvh.intersect(&current_ray);
             match intersection {
-                Intersection::Hit {dist, normal, prim} => {
+                Intersection::Hit {dist, surface_props, prim} => {
                     let kernel_result = kernel.bounce(
-                            depth, &current_ray.direction, &normal, &prim, &mut rng);
+                            depth, &current_ray.direction, &surface_props, &prim, &mut rng);
                     light = &light + &throughput.comp_mult(&kernel_result.light);
                     throughput = throughput.comp_mult(&kernel_result.throughput);
                     current_ray = Ray::new(

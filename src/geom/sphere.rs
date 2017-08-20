@@ -48,7 +48,7 @@ impl prim::Prim for Sphere {
         }
     }
 
-    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f32, core::Vec) {
+    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f32, prim::SurfaceProperties) {
         let origin = &ray.origin;
         let l = &ray.direction;
 
@@ -70,18 +70,20 @@ impl prim::Prim for Sphere {
             if core::is_positive(res_neg) {
                 let pt = ray.at(res_neg);
                 let normal = pt.normalized();
-
-                return (res_neg, normal)
+                let surface_props = prim::SurfaceProperties::new(
+                        normal, core::Vec::zero(), core::Vec::zero(), normal);
+                return (res_neg, surface_props);
             }
             else if core::is_positive(res_pos) {
                 let pt = ray.at(res_pos);
                 let normal = pt.normalized();
-
-                return (res_pos, normal)
+                let surface_props = prim::SurfaceProperties::new(
+                        normal, core::Vec::zero(), core::Vec::zero(), normal);
+                return (res_pos, surface_props);
             }
         }
 
         // Either no isect was found or it was behind us.
-        return (0.0, core::Vec::zero())
+        return (0.0, prim::SurfaceProperties::zero())
     }
 }
