@@ -48,6 +48,10 @@ pub fn fresnel_dielectric(cos_theta_in: f32, ior: f32) -> f32 {
     }
 }
 
+pub trait Fresnel : Sync + Send {
+    fn fresnel(&self, cos_theta: f32) -> core::Vec;
+}
+
 // The Disney Fresnel is a blend of dielectric and metallic models.
 pub struct DisneyFresnel {
     color: core::Vec,
@@ -63,40 +67,53 @@ impl DisneyFresnel {
         let spec_color = core::Vec::one().lerp(&color.tint(), specular_tint);
         DisneyFresnel {color: color, spec_color: spec_color, ior: ior, metallic: metallic}
     }
+}
 
-    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+impl Fresnel for DisneyFresnel {
+    fn fresnel(&self, cos_theta: f32) -> core::Vec {
         let dielectric = &self.spec_color * fresnel_dielectric(cos_theta, self.ior);
         let conductor = fresnel_schlick(cos_theta, self.color);
         dielectric.lerp(&conductor, self.metallic)
     }
 }
 
-pub struct FresnelDielectric {
+pub struct DielectricFresnel {
     ior: f32,
 }
 
-impl FresnelDielectric {
-    pub fn new(ior: f32) -> FresnelDielectric {
-        FresnelDielectric {ior: ior}
+impl DielectricFresnel {
+    pub fn new(ior: f32) -> DielectricFresnel {
+        DielectricFresnel {ior: ior}
     }
+}
 
-    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+impl Fresnel for DielectricFresnel {
+    fn fresnel(&self, cos_theta: f32) -> core::Vec {
         &core::Vec::one() * fresnel_dielectric(cos_theta, self.ior)
     }
 }
 
-pub struct FresnelSchlick {
+pub struct SchlickFresnel {
     pub r0: core::Vec,
 }
 
-impl FresnelSchlick {
-    pub fn new(r0: core::Vec) -> FresnelSchlick {
-        FresnelSchlick {r0: r0}
+impl SchlickFresnel {
+    pub fn new(r0: core::Vec) -> SchlickFresnel {
+        SchlickFresnel {r0: r0}
     }
+}
 
-    pub fn fresnel(&self, cos_theta: f32) -> core::Vec {
+impl Fresnel for SchlickFresnel {
+    fn fresnel(&self, cos_theta: f32) -> core::Vec {
         fresnel_schlick(cos_theta, self.r0)
     }
+}
+
+pub trait MicrofacetDistribution : Sync + Send{
+    fn d(&self, half: &core::Vec) -> f32;
+    fn g(&self, i: &core::Vec, o: &core::Vec) -> f32;
+    fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec;
+    fn pdf(&self, i: &core::Vec, half: &core::Vec) -> f32;
 }
 
 pub struct GgxDistribution {
@@ -115,18 +132,6 @@ impl GgxDistribution {
         GgxDistribution {ax: ax, ay: ay}
     }
 
-    pub fn d(&self, half: &core::Vec) -> f32 {
-        let tan2_theta = half.tan2_theta();
-        if tan2_theta.is_finite() {
-            let cos4_theta = half.cos2_theta() * half.cos2_theta();
-            let e = (half.cos2_phi() / (self.ax * self.ax) + half.sin2_phi() / (self.ay * self.ay))
-                    * tan2_theta;
-            1.0 / (std::f32::consts::PI * self.ax * self.ay * cos4_theta * (1.0 + e) * (1.0 + e))
-        } else {
-            0.0
-        }
-    }
-
     fn lambda(&self, v: &core::Vec) -> f32 {
         let abs_tan_theta = f32::abs(v.tan_theta());
         if abs_tan_theta.is_finite() {
@@ -142,10 +147,6 @@ impl GgxDistribution {
 
     fn g1(&self, v: &core::Vec) -> f32 {
         1.0 / (1.0 + self.lambda(v))
-    }
-
-    pub fn g(&self, i: &core::Vec, o: &core::Vec) -> f32 {
-        1.0 / (1.0 + self.lambda(i) + self.lambda(o))
     }
 
     fn sample11(cos_theta: f32, u1: f32, u2: f32) -> (f32, f32) {
@@ -191,8 +192,26 @@ impl GgxDistribution {
             (slope_x, slope_y)
         }
     }
+}
 
-    pub fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec {
+impl MicrofacetDistribution for GgxDistribution {
+    fn d(&self, half: &core::Vec) -> f32 {
+        let tan2_theta = half.tan2_theta();
+        if tan2_theta.is_finite() {
+            let cos4_theta = half.cos2_theta() * half.cos2_theta();
+            let e = (half.cos2_phi() / (self.ax * self.ax) + half.sin2_phi() / (self.ay * self.ay))
+                    * tan2_theta;
+            1.0 / (std::f32::consts::PI * self.ax * self.ay * cos4_theta * (1.0 + e) * (1.0 + e))
+        } else {
+            0.0
+        }
+    }
+
+    fn g(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+        1.0 / (1.0 + self.lambda(i) + self.lambda(o))
+    }
+
+    fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec {
         // Flip coordinates so that we're on the same side as the normal.
         let flip = i.z < 0.0;
         let i_flipped = if flip { -i } else { *i };
@@ -220,7 +239,7 @@ impl GgxDistribution {
         if flip { -&half } else { half }
     }
 
-    pub fn pdf(&self, i: &core::Vec, half: &core::Vec) -> f32 {
+    fn pdf(&self, i: &core::Vec, half: &core::Vec) -> f32 {
         let cos_theta = i.cos_theta();
         if cos_theta == 0.0 {
             0.0
@@ -244,15 +263,6 @@ impl Gtr1Distribution {
         }
     }
 
-    pub fn d(&self, half: &core::Vec) -> f32 {
-        let alpha2 = self.alpha * self.alpha;
-        let cos_theta = half.abs_cos_theta();
-        (alpha2 - 1.0) /
-                (std::f32::consts::PI *
-                f32::ln(alpha2) *
-                (1.0 + (alpha2 - 1.0) * cos_theta * cos_theta))
-    }
-
     fn lambda(&self, v: &core::Vec) -> f32 {
         let alpha_g = 0.25; // According to Disney's BRDF, the Gr term uses alpha=0.25.
         let cos_theta = v.abs_cos_theta();
@@ -262,12 +272,23 @@ impl Gtr1Distribution {
 
         1.0 / (cos_theta + f32::sqrt(alpha2 + cos_theta2 - (alpha2 * cos_theta2)))
     }
+}
 
-    pub fn g(&self, i: &core::Vec, o: &core::Vec) -> f32 {
+impl MicrofacetDistribution for Gtr1Distribution {
+    fn d(&self, half: &core::Vec) -> f32 {
+        let alpha2 = self.alpha * self.alpha;
+        let cos_theta = half.abs_cos_theta();
+        (alpha2 - 1.0) /
+                (std::f32::consts::PI *
+                f32::ln(alpha2) *
+                (1.0 + (alpha2 - 1.0) * cos_theta * cos_theta))
+    }
+
+    fn g(&self, i: &core::Vec, o: &core::Vec) -> f32 {
         1.0 / (1.0 + self.lambda(i) + self.lambda(o))
     }
 
-    pub fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec {
+    fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec {
         let alpha2 = self.alpha * self.alpha;
         let phi = 2.0 * std::f32::consts::PI * rng.next_f32();
         let cos_theta = f32::sqrt(core::clamp_unit(
@@ -281,7 +302,7 @@ impl Gtr1Distribution {
         }
     }
 
-    pub fn pdf(&self, _: &core::Vec, half: &core::Vec) -> f32 {
+    fn pdf(&self, _: &core::Vec, half: &core::Vec) -> f32 {
         // Sampling exactly follows GTR1, so the pdf is the same as the value.
         self.d(half)
     }

@@ -1,4 +1,6 @@
 use material::util;
+use material::util::Fresnel;
+use material::util::MicrofacetDistribution;
 
 use core;
 
@@ -107,35 +109,15 @@ impl Lobe for DisneyDiffuseRefl {
 }
 
 /// This implementation is derived from the MicrofacetReflection in PBRT 3e.
-pub struct DisneySpecularRefl {
-    microfacet: util::GgxDistribution,
-    fresnel: util::DisneyFresnel
+pub struct StandardMicrofacetRefl<Dist: util::MicrofacetDistribution, Fr: util::Fresnel> {
+    microfacet: Dist,
+    fresnel: Fr,
+    color: core::Vec
 }
 
-impl DisneySpecularRefl {
-    pub fn new(
-            color: core::Vec, roughness: f32, ior: f32,
-            specular_tint: f32, metallic: f32) -> DisneySpecularRefl
-    {
-        DisneySpecularRefl::new_aniso(
-                color, roughness, 0.0, ior, specular_tint, metallic)
-    }
-
-    pub fn new_aniso(
-            color: core::Vec, roughness: f32, anisotropic: f32, ior: f32,
-            specular_tint: f32, metallic: f32) -> DisneySpecularRefl
-    {
-        // XXX: We don't actually have proper tangents on surfaces, so anisotropy isn't going
-        // to really make sense at the moment.
-        let ior_adjusted = f32::max(ior, 1.01);
-        DisneySpecularRefl {
-            microfacet: util::GgxDistribution::new(roughness, anisotropic),
-            fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular_tint, metallic)
-        }
-    }
-}
-
-impl Lobe for DisneySpecularRefl {
+impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
+    where Dist: util::MicrofacetDistribution, Fr: util::Fresnel
+{
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
         let cos_theta_in = i.abs_cos_theta();
         let cos_theta_out = o.abs_cos_theta();
@@ -148,7 +130,7 @@ impl Lobe for DisneySpecularRefl {
         let fresnel = self.fresnel.fresnel(o.dot(&half));
         let d = self.microfacet.d(&half);
         let g = self.microfacet.g(i, o);
-        &fresnel * (d * g / (4.0 * cos_theta_out * cos_theta_in))
+        &self.color.comp_mult(&fresnel) * (d * g / (4.0 * cos_theta_out * cos_theta_in))
     }
 
     fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
@@ -190,10 +172,58 @@ impl Lobe for DisneySpecularRefl {
     }
 }
 
+pub struct DisneySpecularRefl {
+}
+
+impl DisneySpecularRefl {
+    pub fn new(
+            color: core::Vec, roughness: f32, ior: f32,
+            specular_tint: f32, metallic: f32)
+            -> StandardMicrofacetRefl<util::GgxDistribution, util::DisneyFresnel>
+    {
+        DisneySpecularRefl::new_aniso(
+                color, roughness, 0.0, ior, specular_tint, metallic)
+    }
+
+    pub fn new_aniso(
+            color: core::Vec, roughness: f32, anisotropic: f32, ior: f32,
+            specular_tint: f32, metallic: f32)
+            -> StandardMicrofacetRefl<util::GgxDistribution, util::DisneyFresnel>
+    {
+        // XXX: We don't actually have proper tangents on surfaces, so anisotropy isn't going
+        // to really make sense at the moment.
+        // Note: The color will be computed by the DisneyFresnel, so we just set it to white on the
+        // lobe itself.
+        let ior_adjusted = f32::max(ior, 1.01);
+        StandardMicrofacetRefl {
+            microfacet: util::GgxDistribution::new(roughness, anisotropic),
+            fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular_tint, metallic),
+            color: core::Vec::one()
+        }
+    }
+}
+
+pub struct DisneyClearcoatRefl {
+}
+
+impl DisneyClearcoatRefl {
+    pub fn new(clearcoat: f32, clearcoat_gloss: f32)
+        -> StandardMicrofacetRefl<util::Gtr1Distribution, util::SchlickFresnel>
+    {
+        // Note: Disney BRDF: (ior = 1.5 -> F0 = 0.04).
+        // Disney also scales the clearcoat amount by 0.25.
+        StandardMicrofacetRefl {
+            microfacet: util::Gtr1Distribution::new(clearcoat_gloss),
+            fresnel: util::SchlickFresnel {r0: 0.04 * &core::Vec::one()},
+            color: (0.25 * clearcoat) * &core::Vec::one()
+        }
+    }
+}
+
 /// This implementation is derived from the MicrofacetTransmission in PBRT 3e.
 pub struct DisneySpecularTrans {
     microfacet: util::GgxDistribution,
-    fresnel: util::FresnelDielectric,
+    fresnel: util::DielectricFresnel,
     ior: f32,
     color: core::Vec,
 }
@@ -203,7 +233,7 @@ impl DisneySpecularTrans {
         let ior_adjusted = f32::max(ior, 1.01);
         DisneySpecularTrans {
             microfacet: util::GgxDistribution::new(roughness, 0.0),
-            fresnel: util::FresnelDielectric::new(ior_adjusted),
+            fresnel: util::DielectricFresnel::new(ior_adjusted),
             ior: ior_adjusted,
             color: color
         }
@@ -334,79 +364,6 @@ impl Lobe for DisneySpecularTrans {
 
     fn kind(&self) -> LobeKind {
         LOBE_GLOSSY | LOBE_TRANSMISSION
-    }
-}
-
-pub struct DisneyClearcoatRefl {
-    microfacet: util::Gtr1Distribution,
-    fresnel: util::FresnelSchlick,
-    amount: f32,
-}
-
-impl DisneyClearcoatRefl {
-    pub fn new(clearcoat: f32, clearcoat_gloss: f32) -> DisneyClearcoatRefl {
-        // Note: Disney BRDF: (ior = 1.5 -> F0 = 0.04).
-        // Disney also scales the clearcoat amount by 0.25.
-        DisneyClearcoatRefl {
-            microfacet: util::Gtr1Distribution::new(clearcoat_gloss),
-            fresnel: util::FresnelSchlick {r0: 0.04 * &core::Vec::one()},
-            amount: 0.25 * clearcoat
-        }
-    }
-}
-
-impl Lobe for DisneyClearcoatRefl {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
-        let cos_theta_in = i.abs_cos_theta();
-        let cos_theta_out = o.abs_cos_theta();
-        let half_unnorm = i + o;
-        if half_unnorm.is_exactly_zero() || cos_theta_in == 0.0 || cos_theta_out == 0.0 {
-            return core::Vec::zero();
-        }
-
-        let half = half_unnorm.normalized();
-        let fresnel = self.fresnel.fresnel(o.dot(&half));
-        let d = self.microfacet.d(&half);
-        let g = self.microfacet.g(i, o);
-        &fresnel * (self.amount * d * g / (4.0 * cos_theta_out * cos_theta_in))
-    }
-
-    fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
-        if !i.is_local_same_hemisphere(o) {
-            0.0
-        }
-        else {
-            let half = (i + o).normalized();
-            self.microfacet.pdf(i, &half) / (4.0 * i.dot(&half))
-        }
-    }
-
-    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
-        // Sample microfacet orientation (half) and reflected direction (o).
-        if i.z == 0.0 {
-            LobeSample::zero()
-        }
-        else {
-            let half = self.microfacet.sample_half(i, rng);
-            let o = i.reflect(&half);
-            if !i.is_local_same_hemisphere(&o) {
-                LobeSample::zero()
-            }
-            else {
-                // Compute PDF of outoing vector for microfacet reflection.
-                let result = self.f(i, &o);
-                let pdf = self.microfacet.pdf(i, &half) / (4.0 * i.dot(&half));
-                LobeSample {
-                    result: result,
-                    outgoing: o,
-                    pdf: pdf
-                }
-            }
-        }
-    }
-
-    fn kind(&self) -> LobeKind {
-        LOBE_GLOSSY | LOBE_REFLECTION
     }
 }
 
