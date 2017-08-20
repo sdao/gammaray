@@ -64,7 +64,7 @@ pub trait Lobe : Sync + Send {
 }
 
 pub struct DisneyDiffuseRefl {
-    color: core::Vec
+    color: core::Vec,
 }
 
 impl DisneyDiffuseRefl {
@@ -108,6 +108,30 @@ impl Lobe for DisneyRetroRefl {
 
         &self.color * (std::f32::consts::FRAC_1_PI * r_r
                 * (f_out + f_in + f_out * f_in * (r_r - 1.0)))
+    }
+}
+
+pub struct DisneySheenRefl {
+    sheen_color: core::Vec,
+}
+
+impl DisneySheenRefl {
+    pub fn new(color: core::Vec, sheen: f32, sheen_tint: f32) -> DisneySheenRefl {
+        let sheen_color = sheen * &core::Vec::one().lerp(&color.tint(), sheen_tint);
+        DisneySheenRefl {sheen_color: sheen_color}
+    }
+}
+
+impl Lobe for DisneySheenRefl {
+    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+        let half_unnorm = i + o;
+        if half_unnorm.is_exactly_zero() {
+            return core::Vec::zero();
+        }
+
+        let half = half_unnorm.normalized();
+        let cos_theta_d = o.dot(&half); // Note: could have used i here also.
+        &self.sheen_color * util::fresnel_schlick_weight(cos_theta_d)
     }
 }
 

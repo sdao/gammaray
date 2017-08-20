@@ -14,7 +14,8 @@ pub fn main() {
         material::Material::disney()
                 .base_color(core::Vec::new(0.0, 0.5, 1.0))
                 .roughness(0.5)
-                .metallic(1.0)
+                .metallic(0.0)
+                .sheen(1.0)
                 .build(),
         core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
         7.0);
@@ -70,6 +71,7 @@ pub fn main() {
                     .roughness(0.2)
                     .ior(1.8)
                     .metallic(0.0)
+                    .sheen(1.0)
                     .build(),
             core::Mat::translation(&core::Vec::new(-20.0 + (i * 4) as f32, -12.0, -100.0)),
             1.8)));
@@ -85,7 +87,12 @@ pub fn main() {
     let mut film = render::Film::new(width, height);
     let mut writer = render::ExrWriter::new("output.exr");
     let mut iter_count = 0usize;
+    let limit = 200;
     loop {
+        if iter_count == limit {
+                return;
+        }
+
         let start = std::time::Instant::now();
         stage.trace(&c, &kernel, &mut film);
         let stop = std::time::Instant::now();

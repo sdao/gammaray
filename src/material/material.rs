@@ -9,22 +9,6 @@ use rand::distributions::IndependentSample;
 use rand::distributions::range::Range;
 
 pub struct Material {
-    // pub base_color: core::Vec,
-    // pub incandescence: core::Vec,
-    //
-    // pub metallic: f32,
-    // pub specular_tint: f32,
-    // pub roughness: f32,
-    // pub anisotropic: f32,
-    // pub sheen: f32,
-    // pub sheen_tint: f32,
-    // pub clearcoat: f32,
-    // pub clearcoat_gloss: f32,
-    // pub scatter_distance: core::Vec,
-    // pub ior: f32,
-    // pub spec_trans: f32,
-    // pub diff_trans: f32,
-    // pub flatness:f32,
     display: core::Vec,
     light: Box<lights::Light>,
     lobes: std::vec::Vec<Box<lobes::Lobe>>
@@ -154,6 +138,13 @@ impl DisneyMaterialBuilder {
             let diffuse_color = &self._base_color * diffuse_weight;
             lobes_list.push(Box::new(lobes::DisneyDiffuseRefl::new(diffuse_color)));
             lobes_list.push(Box::new(lobes::DisneyRetroRefl::new(diffuse_color, self._roughness)));
+        }
+
+        // Sheen (OK to be additive on top of diffuse according to Burley)
+        let sheen_weight = diffuse_weight * self._sheen;
+        if sheen_weight > 0.0 {
+            lobes_list.push(Box::new(lobes::DisneySheenRefl::new(
+                    self._base_color, sheen_weight, self._sheen_tint)));
         }
 
         // Specular reflection
