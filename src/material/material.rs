@@ -2,11 +2,19 @@ use material::lights;
 use material::lobes;
 
 use core;
+use geom;
 
 use std;
 use rand;
 use rand::distributions::IndependentSample;
 use rand::distributions::range::Range;
+
+pub struct MaterialSample {
+    pub emission: core::Vec,
+    pub radiance: core::Vec,
+    pub outgoing: core::Vec,
+    pub pdf: f32,
+}
 
 pub struct Material {
     display: core::Vec,
@@ -44,56 +52,80 @@ impl Material {
     }
 
     /// See PBRT 3e, page 832.
-    pub fn sample(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> lobes::LobeSample {
+    /// Args:
+    ///   incoming_world should face away from the intersection point.
+    ///   surface_props should be in world-space.
+    pub fn sample_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties,
+        rng: &mut rand::XorShiftRng) -> MaterialSample
+    {
+        // Convert from world-space to local space.
+        let normal = &surface_props.normal;
+        let (tangent, binormal) = normal.coord_system();
+        let incoming_local = incoming_world.world_to_local(&tangent, &binormal, &normal);
+
+        // Calculate emission. This doesn't depend on reflecting an outgoing ray.
+        let emission = self.light.l(&incoming_local);
+
         if self.lobes.len() == 0 {
-            return lobes::LobeSample::zero();
+            return MaterialSample {
+                emission: emission,
+                radiance: core::Vec::zero(),
+                outgoing: core::Vec::zero(),
+                pdf: 1.0
+            };
         }
 
         // Choose a lobe and sample it.
         let range = Range::new(0, self.lobes.len());
         let r = range.ind_sample(rng);
         let lobe = &self.lobes[r];
-        let mut sample = lobe.sample_f(i, rng);
+        let sample = lobe.sample_f(&incoming_local, rng);
+
+        let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
+        let mut radiance = sample.result;
+        let mut pdf = sample.pdf;
 
         // Compute overall PDF over all lobes (if the chosen lobe wasn't specular).
         if !lobe.kind().contains(lobes::LOBE_SPECULAR) {
             for idx in 0..self.lobes.len() {
                 if idx != r {
-                    sample.pdf += self.lobes[idx].pdf(i, &sample.outgoing);
+                    pdf += self.lobes[idx].pdf(&incoming_local, &sample.outgoing);
                 }
             }
         }
-        sample.pdf /= self.lobes.len() as f32;
+        pdf /= self.lobes.len() as f32;
 
         // Compute overall BSDF over all lobes (if the chosen lobe wasn't specular).
         if !lobe.kind().contains(lobes::LOBE_SPECULAR) {
-            // XXX: reflect should actually be based on geom normal, not shading normal.
-            // Need to introduce concept of geom vs shading normals.
-            // Doesn't matter at this point because we just have spheres.
-            let reflect = i.is_local_same_hemisphere(&sample.outgoing);
+            // Whether we're evalauting BTDFs or BRDFs should actually be based on geom normal,
+            // not shading normal.
+            let reflect = (incoming_world.dot(&surface_props.geom_normal) *
+                    outgoing_world.dot(&surface_props.geom_normal)) > 0.0;
             for idx in 0..self.lobes.len() {
                 if idx != r &&
                         ((reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
                         (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION))) {
-                    sample.result = &sample.result + &self.lobes[idx].f(i, &sample.outgoing);
+                    radiance = &radiance + &self.lobes[idx].f(&incoming_local, &sample.outgoing);
                 }
             }
         }
 
-        if sample.pdf == 0.0 {
-            sample.result = core::Vec::zero();
-            sample.pdf = 1.0;
+        // Normalize; if pdf is zero, then make the radiance black to be safe.
+        if pdf == 0.0 {
+            radiance = core::Vec::zero();
+            pdf = 1.0;
         }
 
-        debug_assert!(sample.result.is_finite());
-        debug_assert!(sample.pdf.is_finite());
-        debug_assert!(sample.pdf > 0.0);
+        debug_assert!(radiance.is_finite());
+        debug_assert!(pdf.is_finite());
+        debug_assert!(pdf > 0.0);
 
-        sample
-    }
-
-    pub fn light(&self, i: &core::Vec) -> core::Vec {
-        self.light.l(i)
+        return MaterialSample {
+            emission: emission,
+            radiance: radiance,
+            outgoing: outgoing_world,
+            pdf: pdf,
+        };
     }
 }
 

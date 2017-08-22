@@ -4,10 +4,6 @@ use gammaray::geom;
 use gammaray::material;
 use gammaray::render;
 
-extern crate rand;
-use rand::{Rng, SeedableRng};
-use material::Lobe;
-
 pub fn main() {
     let c = core::Camera::default();
     let s1 = geom::Sphere::new(
@@ -84,7 +80,7 @@ pub fn main() {
     println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
 
     let mut stage = render::Stage::new(prims);
-    let kernel = render::PathTracerKernel::new();
+    let integrator = render::PathTracerIntegrator {};
 
     let mut film = render::Film::new(width, height);
     let mut writer = render::ExrWriter::new("output.exr");
@@ -96,7 +92,7 @@ pub fn main() {
         }
 
         let start = std::time::Instant::now();
-        stage.trace(&c, &kernel, &mut film);
+        stage.trace(&c, &integrator, &mut film);
         let stop = std::time::Instant::now();
 
         if iter_count % 4 == 0 {

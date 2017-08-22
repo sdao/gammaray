@@ -350,8 +350,6 @@ impl Lobe for DisneySpecularTrans {
                 let result = self.f(i, &o);
                 let pdf = self.pdf(i, &o);
                 debug_assert!(result.is_finite());
-                // debug_assert!(result.magnitude() / pdf > 0.1, "{} {} {}", result, pdf, half);
-                // XXX - exiting is broken but entering seems OK
 
                 LobeSample {
                     result: result,
