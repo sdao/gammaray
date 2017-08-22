@@ -294,7 +294,6 @@ impl Lobe for DisneySpecularTrans {
             0.0
         }
         else {
-            // Compute $\wh$ from $\wo$ and $\wi$ for microfacet transmission
             let eta = if i.cos_theta() > 0.0 {
                 // Entering.
                 self.ior
@@ -304,6 +303,7 @@ impl Lobe for DisneySpecularTrans {
                 1.0 / self.ior
             };
 
+            // Compute half from i and o for microfacet transmission.
             let half_unnorm = i + &(o * eta);
             let half = if half_unnorm.z > 0.0 {
                 half_unnorm
@@ -311,9 +311,8 @@ impl Lobe for DisneySpecularTrans {
             else {
                 -&half_unnorm.normalized()
             };
-            // println!("half={}", half);
 
-            // Compute change of variables _dwh\_dwi_ for microfacet transmission
+            // Compute change of variables for microfacet transmission.
             let sqrt_denom = i.dot(&half) + eta * o.dot(&half);
             let dwh_dwi = f32::abs((eta * eta * o.dot(&half)) / (sqrt_denom * sqrt_denom));
             return self.microfacet.pdf(&i, &half) * dwh_dwi;
@@ -327,17 +326,14 @@ impl Lobe for DisneySpecularTrans {
         }
         else {
             let half = self.microfacet.sample_half(i, rng);
-            // println!("HALF={}", half);
             let eta = if i.cos_theta() > 0.0 {
                 // Entering.
                 1.0 / self.ior
             }
             else {
                 // Exiting.
-                // println!("EXITING, ior={}", self.ior);
                 self.ior
             };
-            // println!("i={}, eta={}", i, eta);
 
             let o = i.refract(&half, eta);
             debug_assert!(o.is_finite());
