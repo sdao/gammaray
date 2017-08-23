@@ -5,9 +5,9 @@ use material;
 
 pub struct Sphere {
     mat: material::Material,
-    radius: f32,
     xform: core::Mat,
     xform_inv: core::Mat,
+    radius: f32,
 }
 
 impl Sphere {
@@ -17,9 +17,30 @@ impl Sphere {
         let inverted = xf.inverted();
         Sphere {
             mat: material,
-            radius: radius,
             xform: xf,
-            xform_inv: inverted
+            xform_inv: inverted,
+            radius: radius,
+        }
+    }
+}
+
+impl Sphere {
+    fn compute_surface_props(&self, pt: &core::Vec) -> prim::SurfaceProperties {
+        // Example: normal = (1, 0, 0)
+        //          tangent = (0, 0, -1)
+        //          binormal: (0, -1, 0)
+        let normal = pt.normalized();
+        if core::is_nearly_zero(normal.x) && core::is_nearly_zero(normal.z) {
+            // Singularity at top or bottom.
+            let tangent = core::Vec::x_axis();
+            let binormal = tangent.cross(&normal);
+            prim::SurfaceProperties::new(normal, tangent, binormal, normal)
+        }
+        else {
+            // Normal point.
+            let tangent = core::Vec::new(-normal.z, 0.0, normal.x).normalized();
+            let binormal = tangent.cross(&normal);
+            prim::SurfaceProperties::new(normal, tangent, binormal, normal)
         }
     }
 }
@@ -69,17 +90,11 @@ impl prim::Prim for Sphere {
             // Neg before pos because we want to return closest isect first.
             if core::is_positive(res_neg) {
                 let pt = ray.at(res_neg);
-                let normal = pt.normalized();
-                let surface_props = prim::SurfaceProperties::new(
-                        normal, core::Vec::zero(), core::Vec::zero(), normal);
-                return (res_neg, surface_props);
+                return (res_neg, self.compute_surface_props(&pt));
             }
             else if core::is_positive(res_pos) {
                 let pt = ray.at(res_pos);
-                let normal = pt.normalized();
-                let surface_props = prim::SurfaceProperties::new(
-                        normal, core::Vec::zero(), core::Vec::zero(), normal);
-                return (res_pos, surface_props);
+                return (res_pos, self.compute_surface_props(&pt));
             }
         }
 

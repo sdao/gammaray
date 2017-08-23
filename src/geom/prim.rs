@@ -9,6 +9,11 @@ pub trait Prim : Sync + Send {
     fn material(&self) -> &material::Material;
     fn local_to_world_xform(&self) -> &core::Mat;
     fn world_to_local_xform(&self) -> &core::Mat;
+    /**
+     * Returns the bounding box in local space for all the geometry in this prim.
+     * It's OK to compute this on demand (and not cache the bounding box) because it is the
+     * responsibility of callers (such as acceleration structures) to cache the value.
+     */
     fn bbox_local(&self, component: usize) -> core::BBox;
     fn bbox_world(&self, component: usize) -> core::BBox {
         self.local_to_world_xform().transform_bbox(&self.bbox_local(component))
@@ -40,6 +45,7 @@ pub trait Prim : Sync + Send {
     }
 }
 
+/// Properties of the prim surface at the point of an intersection.
 pub struct SurfaceProperties {
     pub normal: core::Vec,
     pub tangent: core::Vec,

@@ -10,7 +10,7 @@ pub fn main() {
         material::Material::disney()
                 .base_color(core::Vec::new(0.0, 0.5, 1.0))
                 .roughness(0.5)
-                .metallic(0.0)
+                .metallic(0.5)
                 .sheen(1.0)
                 .build(),
         core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
@@ -51,6 +51,7 @@ pub fn main() {
                     .base_color(color)
                     .roughness(0.5)
                     .metallic(1.0)
+                    .anisotropic(0.8)
                     .clearcoat(1.0)
                     .clearcoat_gloss(1.0)
                     .build(),

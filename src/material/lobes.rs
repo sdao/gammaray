@@ -190,8 +190,6 @@ impl DisneySpecularRefl {
             specular_tint: f32, metallic: f32)
             -> StandardMicrofacetRefl<util::GgxDistribution, util::DisneyFresnel>
     {
-        // XXX: We don't actually have proper tangents on surfaces, so anisotropy isn't going
-        // to really make sense at the moment.
         // Note: The color will be computed by the DisneyFresnel, so we just set it to white on the
         // lobe itself.
         let ior_adjusted = f32::max(ior, 1.01);
@@ -230,9 +228,15 @@ pub struct DisneySpecularTrans {
 
 impl DisneySpecularTrans {
     pub fn new(color: core::Vec, roughness: f32, ior: f32) -> DisneySpecularTrans {
+        DisneySpecularTrans::new_aniso(color, roughness, 0.0, ior)
+    }
+
+    pub fn new_aniso(color: core::Vec, roughness: f32, anisotropic: f32, ior: f32)
+        -> DisneySpecularTrans
+    {
         let ior_adjusted = f32::max(ior, 1.01);
         DisneySpecularTrans {
-            microfacet: util::GgxDistribution::new(roughness, 0.0),
+            microfacet: util::GgxDistribution::new(roughness, anisotropic),
             fresnel: util::DielectricFresnel::new(ior_adjusted),
             ior: ior_adjusted,
             color: color

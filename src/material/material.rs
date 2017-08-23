@@ -59,9 +59,8 @@ impl Material {
         rng: &mut rand::XorShiftRng) -> MaterialSample
     {
         // Convert from world-space to local space.
-        let normal = &surface_props.normal;
-        let (tangent, binormal) = normal.coord_system();
-        let incoming_local = incoming_world.world_to_local(&tangent, &binormal, &normal);
+        let incoming_local = incoming_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
 
         // Calculate emission. This doesn't depend on reflecting an outgoing ray.
         let emission = self.light.l(&incoming_local);
@@ -81,7 +80,8 @@ impl Material {
         let lobe = &self.lobes[r];
         let sample = lobe.sample_f(&incoming_local, rng);
 
-        let outgoing_world = sample.outgoing.local_to_world(&tangent, &binormal, &normal);
+        let outgoing_world = sample.outgoing.local_to_world(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
         let mut radiance = sample.result;
         let mut pdf = sample.pdf;
 
@@ -132,6 +132,7 @@ impl Material {
 pub struct DisneyMaterialBuilder {
     _base_color: core::Vec,
     _roughness: f32,
+    _anisotropic: f32,
     _ior: f32,
     _metallic: f32,
     _specular_trans: f32,
@@ -152,6 +153,7 @@ impl DisneyMaterialBuilder {
         DisneyMaterialBuilder {
             _base_color: core::Vec::one(),
             _roughness: 0.5,
+            _anisotropic: 0.0,
             _ior: 1.5,
             _metallic: 0.0,
             _specular_trans: 0.0,
@@ -178,9 +180,9 @@ impl DisneyMaterialBuilder {
 
         // Specular reflection
         if self._ior > 1.0 {
-            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new(
-                    self._base_color, self._roughness, self._ior, self._specular_tint,
-                    self._metallic)))
+            lobes_list.push(Box::new(lobes::DisneySpecularRefl::new_aniso(
+                    self._base_color, self._roughness, self._anisotropic, self._ior,
+                    self._specular_tint, self._metallic)))
         }
 
         // Clearcoat (second specular lobe)
@@ -195,8 +197,8 @@ impl DisneyMaterialBuilder {
             // for art-direction purposes; it makes it so that light that enters and exits
             // will have the base color instead of being darker.
             let specular_trans_color = trans_weight * &self._base_color.sqrt();
-            lobes_list.push(Box::new(lobes::DisneySpecularTrans::new(
-                    specular_trans_color, self._roughness, self._ior)));
+            lobes_list.push(Box::new(lobes::DisneySpecularTrans::new_aniso(
+                    specular_trans_color, self._roughness, self._anisotropic, self._ior)));
         }
 
         Material {
@@ -213,6 +215,11 @@ impl DisneyMaterialBuilder {
 
     pub fn roughness(&mut self, val: f32) -> &mut Self {
         self._roughness = val;
+        self
+    }
+
+    pub fn anisotropic(&mut self, val: f32) -> &mut Self {
+        self._anisotropic = val;
         self
     }
 
