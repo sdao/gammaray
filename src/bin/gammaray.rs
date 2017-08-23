@@ -6,15 +6,16 @@ use gammaray::render;
 
 pub fn main() {
     let c = core::Camera::default();
-    let s1 = geom::Sphere::new(
+    let s1 = geom::Mesh::from_obj(
         material::Material::disney()
                 .base_color(core::Vec::new(0.0, 0.5, 1.0))
                 .roughness(0.5)
                 .metallic(0.5)
                 .sheen(1.0)
                 .build(),
-        core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
-        7.0);
+        &core::Mat::scale(1.0) *
+                &core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
+        "cone.obj").unwrap();
     let s2 = geom::Sphere::new(
         material::Material::diffuse_light(core::Vec::new(2.0, 2.0, 2.0)),
         core::Mat::translation(&core::Vec::new(12.0, 3.0, -90.0)),

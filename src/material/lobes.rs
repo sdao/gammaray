@@ -5,6 +5,8 @@ use material::util::MicrofacetDistribution;
 use core;
 
 use std;
+use std::fmt;
+use std::fmt::Display;
 use rand;
 use rand::distributions::IndependentSample;
 
@@ -34,7 +36,7 @@ bitflags! {
     }
 }
 
-pub trait Lobe : Sync + Send {
+pub trait Lobe : Display + Sync + Send {
     fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
 
     fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
@@ -108,6 +110,13 @@ impl Lobe for DisneyDiffuseRefl {
     }
 }
 
+impl Display for DisneyDiffuseRefl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "DisneyDiffuseRefl(color={}, sheen_color={}, roughness={})",
+                self.color, self.sheen_color, self.roughness)
+    }
+}
+
 /// This implementation is derived from the MicrofacetReflection in PBRT 3e.
 pub struct StandardMicrofacetRefl<Dist: util::MicrofacetDistribution, Fr: util::Fresnel> {
     microfacet: Dist,
@@ -169,6 +178,14 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
 
     fn kind(&self) -> LobeKind {
         LOBE_GLOSSY | LOBE_REFLECTION
+    }
+}
+
+impl<Dist, Fr> Display for StandardMicrofacetRefl<Dist, Fr>
+    where Dist: util::MicrofacetDistribution, Fr: util::Fresnel
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "StandardMicrofacetRefl(color={})", self.color)
     }
 }
 
@@ -365,6 +382,12 @@ impl Lobe for DisneySpecularTrans {
     }
 }
 
+impl Display for DisneySpecularTrans {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "DisneySpecularTrans(color={}, ior={})", self.color, self.ior)
+    }
+}
+
 pub struct PerfectMirror {
 }
 
@@ -397,5 +420,11 @@ impl Lobe for PerfectMirror {
 
     fn kind(&self) -> LobeKind {
         LOBE_SPECULAR | LOBE_REFLECTION
+    }
+}
+
+impl Display for PerfectMirror {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PerfectMirror")
     }
 }

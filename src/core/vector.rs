@@ -56,6 +56,13 @@ impl Vec {
     pub fn is_exactly_zero(&self) -> bool {
         self.x == 0.0 && self.y == 0.0 && self.z == 0.0
     }
+
+    pub fn is_close(&self, v: &Vec, epsilon: f32) -> bool {
+        f32::abs(v.x - self.x) < epsilon &&
+                f32::abs(v.y - self.y) < epsilon &&
+                f32::abs(v.z - self.z) < epsilon
+    }
+
     pub fn magnitude(&self) -> f32 {
         f32::sqrt(self.dot(self))
     }

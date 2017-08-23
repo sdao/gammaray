@@ -33,13 +33,13 @@ impl Sphere {
         if core::is_nearly_zero(normal.x) && core::is_nearly_zero(normal.z) {
             // Singularity at top or bottom.
             let tangent = core::Vec::x_axis();
-            let binormal = tangent.cross(&normal);
+            let binormal = normal.cross(&tangent);
             prim::SurfaceProperties::new(normal, tangent, binormal, normal)
         }
         else {
             // Normal point.
             let tangent = core::Vec::new(-normal.z, 0.0, normal.x).normalized();
-            let binormal = tangent.cross(&normal);
+            let binormal = normal.cross(&tangent);
             prim::SurfaceProperties::new(normal, tangent, binormal, normal)
         }
     }

@@ -46,6 +46,8 @@ pub trait Prim : Sync + Send {
 }
 
 /// Properties of the prim surface at the point of an intersection.
+/// The coordinate system formed by normal, tangent, and binormal should satisfy the condition
+/// tangent (cross) binormal = normal.
 pub struct SurfaceProperties {
     pub normal: core::Vec,
     pub tangent: core::Vec,
