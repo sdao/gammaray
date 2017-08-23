@@ -25,8 +25,6 @@ impl Tri {
 
 pub struct Mesh {
     mat: material::Material,
-    xform: core::Mat,
-    xform_inv: core::Mat,
     vertices: std::vec::Vec<core::Vec>,
     tris: std::vec::Vec<Tri>,
 }
@@ -37,7 +35,7 @@ impl Mesh {
     {
         let mut file: File;
         match File::open(path) {
-            Ok(mut f) => {
+            Ok(f) => {
                 file = f;
             },
             Err(reason) => {
@@ -70,7 +68,7 @@ impl Mesh {
             // Copy all vertices.
             let offset = vertices.len();
             for v in obj.vertices {
-                vertices.push(core::Vec::new(v.x as f32, v.y as f32, v.z as f32));
+                vertices.push(xform.transform(&core::Vec::new(v.x as f32, v.y as f32, v.z as f32)));
             }
 
             // Copy all triangles.
@@ -90,8 +88,6 @@ impl Mesh {
         let inverted = xf.inverted();
         let mesh = Mesh {
             mat: material,
-            xform: xf,
-            xform_inv: inverted,
             vertices: vertices,
             tris: tris
         };
@@ -119,27 +115,40 @@ impl prim::Prim for Mesh {
     }
 
     fn local_to_world_xform(&self) -> &core::Mat {
-        &self.xform
+        &core::Mat::identity_ref()
     }
 
     fn world_to_local_xform(&self) -> &core::Mat {
-        &self.xform_inv
-    }
-
-    fn bbox_local(&self, component: usize) -> core::BBox {
-        let tri = &self.tris[component];
-        let mut bbox = core::BBox::empty();
-        bbox.union_with(&self.vertices[tri.a]);
-        bbox.union_with(&self.vertices[tri.b]);
-        bbox.union_with(&self.vertices[tri.c]);
-        bbox
+        &core::Mat::identity_ref()
     }
 
     /**
-     * Intersects the given ray in local space with the prim, and returns the distance along the
-     * ray and the surface properties at the point of intersection.
+     * This is unimplemented for meshes, because meshes are always stored in world space.
+     */
+    fn bbox_local(&self, component: usize) -> core::BBox {
+        unreachable!();
+    }
+
+    fn bbox_world(&self, component: usize) -> core::BBox {
+        let tri = &self.tris[component];
+        core::BBox::empty()
+                .union_with(&self.vertices[tri.a])
+                .union_with(&self.vertices[tri.b])
+                .union_with(&self.vertices[tri.c])
+    }
+
+    /**
+     * This is unimplemented for meshes, because meshes are always stored in world space.
      */
     fn intersect_local(&self, ray: &core::Ray, component: usize) -> (f32, prim::SurfaceProperties) {
+        unreachable!();
+    }
+
+    /**
+     * Intersects the given ray in world space with the prim, and returns the distance along the
+     * ray and the surface properties at the point of intersection.
+     */
+    fn intersect_world(&self, ray: &core::Ray, component: usize) -> (f32, prim::SurfaceProperties) {
         let tri = &self.tris[component];
         let a = &self.vertices[tri.a];
         let b = &self.vertices[tri.b];

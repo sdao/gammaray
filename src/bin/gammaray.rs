@@ -13,7 +13,7 @@ pub fn main() {
                 .metallic(0.5)
                 .sheen(1.0)
                 .build(),
-        &core::Mat::scale(1.0) *
+        &core::Mat::scale(2.0) *
                 &core::Mat::translation(&core::Vec::new(-3.0, 0.0, -100.0)),
         "cone.obj").unwrap();
     let s2 = geom::Sphere::new(

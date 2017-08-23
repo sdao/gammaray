@@ -21,6 +21,9 @@ pub trait Prim : Sync + Send {
     /**
      * Intersects the given ray in local space with the prim, and returns the distance along the
      * ray and the surface properties at the point of intersection.
+     * Implementations should be able to handle cases where the incoming ray is not unit length.
+     * Implementations also do not have to return unit-length vectors in the SurfaceProperties,
+     * although it is recommended.
      */
     fn intersect_local(&self, ray: &core::Ray, component: usize) -> (f32, SurfaceProperties);
     /**
@@ -31,16 +34,10 @@ pub trait Prim : Sync + Send {
         let local_ray = self.world_to_local_xform().transform_ray(ray);
         let (dist, surface_props) = self.intersect_local(&local_ray, component);
         if dist == 0.0 {
-            (dist, surface_props)
+            (0.0, SurfaceProperties::zero())
         }
         else {
-            let world_surface_props = SurfaceProperties {
-                normal: self.local_to_world_xform().transform_dir(&surface_props.normal),
-                tangent: self.local_to_world_xform().transform_dir(&surface_props.tangent),
-                binormal: self.local_to_world_xform().transform_dir(&surface_props.binormal),
-                geom_normal: self.local_to_world_xform().transform_dir(&surface_props.geom_normal)
-            };
-            (dist, world_surface_props)
+            (dist, surface_props.transformed(self.local_to_world_xform()))
         }
     }
 }
@@ -66,7 +63,20 @@ impl SurfaceProperties {
             geom_normal: geom_normal
         }
     }
+
     pub fn zero() -> SurfaceProperties {
         Self::new(core::Vec::zero(), core::Vec::zero(), core::Vec::zero(), core::Vec::zero())
+    }
+
+    pub fn transformed(&self, mat: &core::Mat) -> SurfaceProperties {
+        // Normalize here so that the intersect_local function implementations can return
+        // unit-length vectors in their local space, even when the incoming ray is not
+        // unit-length in the local space.
+        SurfaceProperties {
+            normal: mat.transform_dir(&self.normal).normalized(),
+            tangent: mat.transform_dir(&self.tangent).normalized(),
+            binormal: mat.transform_dir(&self.binormal).normalized(),
+            geom_normal: mat.transform_dir(&self.geom_normal).normalized()
+        }
     }
 }

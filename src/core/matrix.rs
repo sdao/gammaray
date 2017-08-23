@@ -24,8 +24,19 @@ impl Mat {
         Self::new([[0.0; 4]; 4])
     }
 
+    pub fn identity_ref() -> &'static Mat {
+        static IDENTITY: Mat = Mat {
+            storage: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0]]
+        };
+        &IDENTITY
+    }
+
     pub fn identity() -> Mat {
-        Self::diagonal(1.0)
+        Self::identity_ref().clone()
     }
 
     pub fn diagonal(k: f32) -> Mat {
