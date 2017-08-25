@@ -20,7 +20,7 @@ impl Integrator for DisplayColorIntegrator {
         -> core::Vec
     {
         match bvh.intersect(initial_ray) {
-            geom::Intersection::Hit {dist, surface_props, prim} => {
+            geom::Intersection::Hit {dist: _, surface_props: _, prim} => {
                 prim.material().display_color().clone()
             },
             geom::Intersection::NoHit => {

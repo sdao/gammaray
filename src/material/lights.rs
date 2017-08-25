@@ -24,7 +24,7 @@ pub struct NullLight {
 }
 
 impl Light for NullLight {
-    fn l(&self, i: &core::Vec) -> core::Vec {
+    fn l(&self, _: &core::Vec) -> core::Vec {
         core::Vec::zero()
     }
 }

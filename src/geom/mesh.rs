@@ -15,22 +15,26 @@ struct Tri {
     pub a: usize,
     pub b: usize,
     pub c: usize,
+    pub an: usize,
+    pub bn: usize,
+    pub cn: usize,
 }
 
 impl Tri {
-    pub fn new(a: usize, b: usize, c: usize) -> Tri {
-        Tri {a: a, b: b, c: c}
+    pub fn new(a: usize, b: usize, c: usize, an: usize, bn: usize, cn: usize) -> Tri {
+        Tri {a: a, b: b, c: c, an: an, bn: bn, cn: cn}
     }
 }
 
 pub struct Mesh {
     mat: material::Material,
     vertices: std::vec::Vec<core::Vec>,
+    normals: std::vec::Vec<core::Vec>,
     tris: std::vec::Vec<Tri>,
 }
 
 impl Mesh {
-    pub fn from_obj<P: AsRef<Path>>(material: material::Material, xform: core::Mat, path: P)
+    pub fn from_obj<P: AsRef<Path>>(material: material::Material, mat: core::Mat, path: P)
         -> Result<Mesh, String>
     {
         let mut file: File;
@@ -63,7 +67,9 @@ impl Mesh {
         }
 
         let mut vertices = std::vec::Vec::<core::Vec>::new();
+        let mut normals = std::vec::Vec::<core::Vec>::new();
         let mut tris = std::vec::Vec::<Tri>::new();
+        let xform = core::Xform::new(mat);
         for obj in obj_set.objects {
             // Copy all vertices.
             let offset = vertices.len();
@@ -71,12 +77,42 @@ impl Mesh {
                 vertices.push(xform.transform(&core::Vec::new(v.x as f32, v.y as f32, v.z as f32)));
             }
 
+            // Copy all normals.
+            let noffset = normals.len();
+            for n in obj.normals {
+                normals.push(xform.transform_normal(
+                        &core::Vec::new(n.x as f32, n.y as f32, n.z as f32)));
+            }
+
             // Copy all triangles.
             for g in obj.geometry {
                 for s in g.shapes {
                     match s.primitive {
-                        wavefront_obj::obj::Primitive::Triangle(a, b, c) => {
-                            tris.push(Tri::new(offset + a.0, offset + b.0, offset + c.0));
+                        wavefront_obj::obj::Primitive::Triangle(
+                            (av, _, Some(an)), (bv, _, Some(bn)), (cv, _, Some(cn))) =>
+                        {
+                            // We're able to read the shading normal from the file.
+                            tris.push(Tri::new(
+                                    offset + av, offset + bv, offset + cv,
+                                    noffset + an, noffset + bn, noffset + cn));
+                        },
+                        wavefront_obj::obj::Primitive::Triangle(
+                            (av, _, _), (bv, _, _), (cv, _, _)) =>
+                        {
+                            // Compute the geometric normal, and use that in place of the shading
+                            // normal.
+                            let edge1 = &vertices[offset + bv] - &vertices[offset + av];
+                            let edge2 = &vertices[offset + cv] - &vertices[offset + av];
+                            let normal = edge1.cross(&edge2).normalized();
+                            normals.push(normal);
+
+                            tris.push(Tri::new(
+                                    offset + av,
+                                    offset + bv,
+                                    offset + cv,
+                                    normals.len() - 1,
+                                    normals.len() - 1,
+                                    normals.len() - 1));
                         },
                         _ => {}
                     }
@@ -84,11 +120,10 @@ impl Mesh {
             }
         }
 
-        let xf = xform;
-        let inverted = xf.inverted();
         let mesh = Mesh {
             mat: material,
             vertices: vertices,
+            normals: normals,
             tris: tris
         };
         Ok(mesh)
@@ -114,18 +149,14 @@ impl prim::Prim for Mesh {
         &self.mat
     }
 
-    fn local_to_world_xform(&self) -> &core::Mat {
-        &core::Mat::identity_ref()
-    }
-
-    fn world_to_local_xform(&self) -> &core::Mat {
-        &core::Mat::identity_ref()
+    fn local_to_world_xform(&self) -> &core::Xform {
+        &core::Xform::identity_ref()
     }
 
     /**
      * This is unimplemented for meshes, because meshes are always stored in world space.
      */
-    fn bbox_local(&self, component: usize) -> core::BBox {
+    fn bbox_local(&self, _: usize) -> core::BBox {
         unreachable!();
     }
 
@@ -140,7 +171,7 @@ impl prim::Prim for Mesh {
     /**
      * This is unimplemented for meshes, because meshes are always stored in world space.
      */
-    fn intersect_local(&self, ray: &core::Ray, component: usize) -> (f32, prim::SurfaceProperties) {
+    fn intersect_local(&self, _: &core::Ray, _: usize) -> (f32, prim::SurfaceProperties) {
         unreachable!();
     }
 
@@ -153,6 +184,9 @@ impl prim::Prim for Mesh {
         let a = &self.vertices[tri.a];
         let b = &self.vertices[tri.b];
         let c = &self.vertices[tri.c];
+        let an = &self.normals[tri.an];
+        let bn = &self.normals[tri.bn];
+        let cn = &self.normals[tri.cn];
 
         // Uses the Moller-Trumbore intersection algorithm.
         // See <http://en.wikipedia.org/wiki/Moller-Trumbore_intersection_algorithm> for more info.
@@ -183,12 +217,11 @@ impl prim::Prim for Mesh {
             return (0.0, prim::SurfaceProperties::zero()); // In triangle but behind us.
         }
 
+        // XXX: Maybe use UV coordinates to setup tangent and binormal.
+        // That way we'd get consistent tangents.
         let w = 1.0 - u - v;
-
-        // XXX: For now, compute normal by hand.
-        let normal = edge1.cross(&edge2).normalized();
-        let tangent = edge1.normalized();
-        let binormal = normal.cross(&tangent);
+        let normal = (&(&(w * an) + &(u * bn)) + &(v * cn)).normalized();
+        let (tangent, binormal) = normal.coord_system();
         let surface_props = prim::SurfaceProperties::new(normal, tangent, binormal, normal);
 
         return (dist, surface_props);

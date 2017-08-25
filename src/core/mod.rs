@@ -24,3 +24,6 @@ pub use core::ray::Ray;
 
 mod vector;
 pub use core::vector::Vec;
+
+mod xform;
+pub use core::xform::Xform;

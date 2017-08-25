@@ -2,6 +2,7 @@ use core::matrix;
 use core::quat;
 use core::ray;
 use core::vector;
+use core::xform;
 
 pub const HORIZONTAL_APERTURE_35MM: f32 = 2.2;
 pub const VERTICAL_APERTURE_35MM: f32 = 1.6;
@@ -28,7 +29,7 @@ pub struct Camera {
      * objects into focus. A smaller f-stop will narrow the focus around the focal length.
      */
     pub f_stop: f32,
-    pub xform: matrix::Mat,
+    pub xform: xform::Xform,
 }
 
 impl Camera {
@@ -47,14 +48,14 @@ impl Camera {
     {
         let translate_mat = matrix::Mat::translation(&translate);
         let rotate_mat = matrix::Mat::rotation(&rotate);
-        let combined = &translate_mat * &rotate_mat;
+        let xform = xform::Xform::new(&translate_mat * &rotate_mat);
 
         Camera {
             focal_length: focal_length,
             horizontal_aperture: horizontal_aperture,
             vertical_aperture: vertical_aperture,
             f_stop: f_stop,
-            xform: combined,
+            xform: xform,
         }
     }
 

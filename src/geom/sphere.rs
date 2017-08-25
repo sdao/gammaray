@@ -5,20 +5,16 @@ use material;
 
 pub struct Sphere {
     mat: material::Material,
-    xform: core::Mat,
-    xform_inv: core::Mat,
+    xform: core::Xform,
     radius: f32,
 }
 
 impl Sphere {
-    pub fn new(material: material::Material, xform: core::Mat, radius: f32) -> Sphere
+    pub fn new(material: material::Material, mat: core::Mat, radius: f32) -> Sphere
     {
-        let xf = xform;
-        let inverted = xf.inverted();
         Sphere {
             mat: material,
-            xform: xf,
-            xform_inv: inverted,
+            xform: core::Xform::new(mat),
             radius: radius,
         }
     }
@@ -54,12 +50,8 @@ impl prim::Prim for Sphere {
         &self.mat
     }
 
-    fn local_to_world_xform(&self) -> &core::Mat {
+    fn local_to_world_xform(&self) -> &core::Xform {
         &self.xform
-    }
-
-    fn world_to_local_xform(&self) -> &core::Mat {
-        &self.xform_inv
     }
 
     fn bbox_local(&self, _: usize) -> core::BBox {

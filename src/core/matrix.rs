@@ -1,7 +1,5 @@
-use core::bbox;
 use core::math;
 use core::quat;
-use core::ray;
 use core::vector;
 
 use std;
@@ -12,7 +10,7 @@ use std::ops::{Mul, Index, IndexMut};
 /** A 4x4 matrix in row-major order. */
 #[derive(Clone)]
 pub struct Mat {
-    storage: [[f32; 4]; 4],
+    pub storage: [[f32; 4]; 4],
 }
 
 impl Mat {
@@ -24,19 +22,8 @@ impl Mat {
         Self::new([[0.0; 4]; 4])
     }
 
-    pub fn identity_ref() -> &'static Mat {
-        static IDENTITY: Mat = Mat {
-            storage: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0]]
-        };
-        &IDENTITY
-    }
-
     pub fn identity() -> Mat {
-        Self::identity_ref().clone()
+        Self::diagonal(1.0)
     }
 
     pub fn diagonal(k: f32) -> Mat {
@@ -159,40 +146,6 @@ impl Mat {
          + self[1][3] * self.determinant3(0, 2, 3, 0, 1, 2)
          - self[2][3] * self.determinant3(0, 1, 3, 0, 1, 2)
          + self[3][3] * self.determinant3(0, 1, 2, 0, 1, 2))
-    }
-
-    pub fn transform(&self, v: &vector::Vec) -> vector::Vec {
-        let x = v.x * self[0][0] + v.y * self[1][0] + v.z * self[2][0] + self[3][0];
-        let y = v.x * self[0][1] + v.y * self[1][1] + v.z * self[2][1] + self[3][1];
-        let z = v.x * self[0][2] + v.y * self[1][2] + v.z * self[2][2] + self[3][2];
-        let w = v.x * self[0][3] + v.y * self[1][3] + v.z * self[2][3] + self[3][3];
-        vector::Vec::new(x / w, y / w, z / w)
-    }
-
-    pub fn transform_dir(&self, v: &vector::Vec) -> vector::Vec {
-        vector::Vec::new(
-            v.x * self[0][0] + v.y * self[1][0] + v.z * self[2][0],
-            v.x * self[0][1] + v.y * self[1][1] + v.z * self[2][1],
-            v.x * self[0][2] + v.y * self[1][2] + v.z * self[2][2])
-    }
-
-    pub fn transform_ray(&self, r: &ray::Ray) -> ray::Ray {
-        ray::Ray {
-            origin: self.transform(&r.origin),
-            direction: self.transform_dir(&r.direction)
-        }
-    }
-
-    pub fn transform_bbox(&self, b: &bbox::BBox) -> bbox::BBox {
-        bbox::BBox::empty()
-                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.min.y, b.min.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.min.y, b.min.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.max.y, b.min.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.min.y, b.max.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.min.x, b.max.y, b.max.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.min.y, b.max.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.max.y, b.min.z)))
-                .union_with(&self.transform(&vector::Vec::new(b.max.x, b.max.y, b.max.z)))
     }
 
     // The implementation of this function is derived from:

@@ -7,8 +7,7 @@ pub trait Prim : Sync + Send {
     }
     fn display_color(&self) -> &core::Vec;
     fn material(&self) -> &material::Material;
-    fn local_to_world_xform(&self) -> &core::Mat;
-    fn world_to_local_xform(&self) -> &core::Mat;
+    fn local_to_world_xform(&self) -> &core::Xform;
     /**
      * Returns the bounding box in local space for all the geometry in this prim.
      * It's OK to compute this on demand (and not cache the bounding box) because it is the
@@ -31,20 +30,30 @@ pub trait Prim : Sync + Send {
      * ray and the surface properties at the point of intersection.
      */
     fn intersect_world(&self, ray: &core::Ray, component: usize) -> (f32, SurfaceProperties) {
-        let local_ray = self.world_to_local_xform().transform_ray(ray);
+        let xform = self.local_to_world_xform();
+        let local_ray = xform.untransform_ray(ray);
         let (dist, surface_props) = self.intersect_local(&local_ray, component);
         if dist == 0.0 {
             (0.0, SurfaceProperties::zero())
         }
         else {
-            (dist, surface_props.transformed(self.local_to_world_xform()))
+            // Normalize here so that the intersect_local function implementations can return
+            // unit-length vectors in their local space, even when the incoming ray is not
+            // unit-length in the local space.
+            let world_surface_props = SurfaceProperties {
+                normal: xform.transform_normal(&surface_props.normal).normalized(),
+                tangent: xform.transform_dir(&surface_props.tangent).normalized(),
+                binormal: xform.transform_dir(&surface_props.binormal).normalized(),
+                geom_normal: xform.transform_normal(&surface_props.geom_normal).normalized()
+            };
+            (dist, world_surface_props)
         }
     }
 }
 
 /// Properties of the prim surface at the point of an intersection.
 /// The coordinate system formed by normal, tangent, and binormal should satisfy the condition
-/// tangent (cross) binormal = normal.
+/// tangent × binormal = normal.
 pub struct SurfaceProperties {
     pub normal: core::Vec,
     pub tangent: core::Vec,
@@ -66,17 +75,5 @@ impl SurfaceProperties {
 
     pub fn zero() -> SurfaceProperties {
         Self::new(core::Vec::zero(), core::Vec::zero(), core::Vec::zero(), core::Vec::zero())
-    }
-
-    pub fn transformed(&self, mat: &core::Mat) -> SurfaceProperties {
-        // Normalize here so that the intersect_local function implementations can return
-        // unit-length vectors in their local space, even when the incoming ray is not
-        // unit-length in the local space.
-        SurfaceProperties {
-            normal: mat.transform_dir(&self.normal).normalized(),
-            tangent: mat.transform_dir(&self.tangent).normalized(),
-            binormal: mat.transform_dir(&self.binormal).normalized(),
-            geom_normal: mat.transform_dir(&self.geom_normal).normalized()
-        }
     }
 }
