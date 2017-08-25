@@ -126,6 +126,40 @@ impl<'a> Intersection<'a> {
     }
 }
 
+const MAX_NODES_TO_VISIT: usize = 64; // This is the value used in PBRT; it should be sufficient.
+
+struct VisitStack {
+    storage: [usize; MAX_NODES_TO_VISIT],
+    cursor: usize
+}
+
+impl VisitStack {
+    pub fn new() -> VisitStack {
+        VisitStack {
+            storage: [0usize; MAX_NODES_TO_VISIT],
+            cursor: 0usize
+        }
+    }
+
+    pub fn push(&mut self, x: usize) {
+        assert!(self.cursor != MAX_NODES_TO_VISIT,
+                "Maximum VisitStack size ({}) exceeded", MAX_NODES_TO_VISIT);
+
+        self.storage[self.cursor] = x;
+        self.cursor += 1;
+    }
+
+    pub fn pop(&mut self) -> Option<usize> {
+        if self.cursor == 0 {
+            None
+        }
+        else {
+            self.cursor -= 1;
+            Some(self.storage[self.cursor])
+        }
+    }
+}
+
 pub struct Bvh {
     prims: std::vec::Vec<Box<prim::Prim>>,
     components: std::vec::Vec<(usize, usize)>,
@@ -350,7 +384,7 @@ impl Bvh {
 
         // Follow ray through BVH nodes to component intersections.
         let mut current_node_index = 0;
-        let mut nodes_to_visit = Vec::<usize>::with_capacity(64);
+        let mut nodes_to_visit = VisitStack::new();
         loop {
             let node = &self.nodes[current_node_index];
 
