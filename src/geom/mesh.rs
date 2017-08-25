@@ -89,9 +89,13 @@ impl Mesh {
                 for s in g.shapes {
                     match s.primitive {
                         wavefront_obj::obj::Primitive::Triangle(
-                            (av, _, Some(an)), (bv, _, Some(bn)), (cv, _, Some(cn))) =>
+                            (av, _, Some(an)), (bv, _, Some(bn)), (cv, _, Some(cn))) if
+                                    !normals[noffset + an].is_nearly_zero() &&
+                                    !normals[noffset + bn].is_nearly_zero() &&
+                                    !normals[noffset + cn].is_nearly_zero() =>
                         {
-                            // We're able to read the shading normal from the file.
+                            // We're able to read the shading normal from the file, and the normals
+                            // are non-zero.
                             tris.push(Tri::new(
                                     offset + av, offset + bv, offset + cv,
                                     noffset + an, noffset + bn, noffset + cn));
@@ -99,8 +103,9 @@ impl Mesh {
                         wavefront_obj::obj::Primitive::Triangle(
                             (av, _, _), (bv, _, _), (cv, _, _)) =>
                         {
-                            // Compute the geometric normal, and use that in place of the shading
-                            // normal.
+                            // Either we're missing a shading normal, or at least one of the normals
+                            // is degenerate.
+                            // Compute the geometric normal, and use that for the shading normal.
                             let edge1 = &vertices[offset + bv] - &vertices[offset + av];
                             let edge2 = &vertices[offset + cv] - &vertices[offset + av];
                             let normal = edge1.cross(&edge2).normalized();
@@ -114,7 +119,9 @@ impl Mesh {
                                     normals.len() - 1,
                                     normals.len() - 1));
                         },
-                        _ => {}
+                        _ => {
+                            // Some other geometric primitive.
+                        }
                     }
                 }
             }
@@ -222,6 +229,11 @@ impl prim::Prim for Mesh {
         let w = 1.0 - u - v;
         let normal = (&(&(w * an) + &(u * bn)) + &(v * cn)).normalized();
         let (tangent, binormal) = normal.coord_system();
+        debug_assert!(normal.is_finite(), "u={}, v={}, w={}, an={}, bn={}, cn={}",
+                u, v, w, an, bn, cn);
+        debug_assert!(tangent.is_finite(), "tan={}, norm={}", tangent, normal);
+        debug_assert!(binormal.is_finite(), "bin={}, norm={}", binormal, normal);
+
         let surface_props = prim::SurfaceProperties::new(normal, tangent, binormal, normal);
 
         return (dist, surface_props);

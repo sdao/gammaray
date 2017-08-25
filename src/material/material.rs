@@ -61,6 +61,10 @@ impl Material {
         // Convert from world-space to local space.
         let incoming_local = incoming_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        debug_assert!(incoming_world.is_finite(), "incoming_world={}", incoming_world);
+        debug_assert!(incoming_local.is_finite(), "il={}, tan={}, bin={}, norm={}",
+                incoming_world,
+                surface_props.tangent, surface_props.binormal, surface_props.normal);
 
         // Calculate emission. This doesn't depend on reflecting an outgoing ray.
         let emission = self.light.l(&incoming_local);
