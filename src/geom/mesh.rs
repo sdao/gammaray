@@ -18,11 +18,18 @@ struct Tri {
     pub an: usize,
     pub bn: usize,
     pub cn: usize,
+    pub at: usize,
+    pub bt: usize,
+    pub ct: usize,
 }
 
 impl Tri {
-    pub fn new(a: usize, b: usize, c: usize, an: usize, bn: usize, cn: usize) -> Tri {
-        Tri {a: a, b: b, c: c, an: an, bn: bn, cn: cn}
+    pub fn new(
+        a: usize, b: usize, c: usize,
+        an: usize, bn: usize, cn: usize,
+        at: usize, bt: usize, ct: usize) -> Tri
+    {
+        Tri {a: a, b: b, c: c, an: an, bn: bn, cn: cn, at: at, bt: bt, ct: ct}
     }
 }
 
@@ -30,6 +37,7 @@ pub struct Mesh {
     mat: material::Material,
     vertices: std::vec::Vec<core::Vec>,
     normals: std::vec::Vec<core::Vec>,
+    uvs: std::vec::Vec<core::Vec>, // XXX: This is probably wasteful since we only need xy-coords.
     tris: std::vec::Vec<Tri>,
 }
 
@@ -68,6 +76,7 @@ impl Mesh {
 
         let mut vertices = std::vec::Vec::<core::Vec>::new();
         let mut normals = std::vec::Vec::<core::Vec>::new();
+        let mut uvs = std::vec::Vec::<core::Vec>::new();
         let mut tris = std::vec::Vec::<Tri>::new();
         let xform = core::Xform::new(mat);
         for obj in obj_set.objects {
@@ -78,50 +87,60 @@ impl Mesh {
             }
 
             // Copy all normals.
+            // Note: we do not assign any meaning to non-unit normals, and the rest of the rendering
+            // system relies on there being unit-length normals, so normalize here.
             let noffset = normals.len();
             for n in obj.normals {
-                normals.push(xform.transform_normal(
-                        &core::Vec::new(n.x as f32, n.y as f32, n.z as f32)));
+                let n2 = core::Vec::new(n.x as f32, n.y as f32, n.z as f32);
+                if n2.is_nearly_zero() {
+                    normals.push(n2);
+                }
+                else {
+                    normals.push(xform.transform_normal(&n2).normalized());
+                }
+            }
+
+            let toffset = uvs.len();
+            for t in obj.tex_vertices {
+                uvs.push(core::Vec::new(t.u as f32, t.v as f32, 0.0));
             }
 
             // Copy all triangles.
             for g in obj.geometry {
                 for s in g.shapes {
-                    match s.primitive {
-                        wavefront_obj::obj::Primitive::Triangle(
-                            (av, _, Some(an)), (bv, _, Some(bn)), (cv, _, Some(cn))) if
-                                    !normals[noffset + an].is_nearly_zero() &&
-                                    !normals[noffset + bn].is_nearly_zero() &&
-                                    !normals[noffset + cn].is_nearly_zero() =>
-                        {
-                            // We're able to read the shading normal from the file, and the normals
-                            // are non-zero.
-                            tris.push(Tri::new(
-                                    offset + av, offset + bv, offset + cv,
-                                    noffset + an, noffset + bn, noffset + cn));
-                        },
-                        wavefront_obj::obj::Primitive::Triangle(
-                            (av, _, _), (bv, _, _), (cv, _, _)) =>
-                        {
-                            // Either we're missing a shading normal, or at least one of the normals
-                            // is degenerate.
-                            // Compute the geometric normal, and use that for the shading normal.
-                            let edge1 = &vertices[offset + bv] - &vertices[offset + av];
-                            let edge2 = &vertices[offset + cv] - &vertices[offset + av];
-                            let normal = edge1.cross(&edge2).normalized();
-                            normals.push(normal);
-
-                            tris.push(Tri::new(
-                                    offset + av,
-                                    offset + bv,
-                                    offset + cv,
-                                    normals.len() - 1,
-                                    normals.len() - 1,
-                                    normals.len() - 1));
-                        },
-                        _ => {
-                            // Some other geometric primitive.
-                        }
+                    if let wavefront_obj::obj::Primitive::Triangle(a, b, c) = s.primitive {
+                        let (av, bv, cv) = (offset + a.0, offset + b.0, offset + c.0);
+                        let (at, bt, ct) = match (a.1, b.1, c.1) {
+                            (Some(at), Some(bt), Some(ct)) => {
+                                (toffset + at, toffset + bt, toffset + ct)
+                            },
+                            _ => {
+                                uvs.push(core::Vec::zero());
+                                (uvs.len() - 1, uvs.len() - 1, uvs.len() - 1)
+                            }
+                        };
+                        let (an, bn, cn) = match (a.2, b.2, c.2) {
+                            (Some(an), Some(bn), Some(cn)) if
+                                !normals[noffset + an].is_nearly_zero() &&
+                                !normals[noffset + bn].is_nearly_zero() &&
+                                !normals[noffset + cn].is_nearly_zero() =>
+                            {
+                                // We're able to read the shading normal from the file, and the
+                                // normals are non-zero.
+                                (noffset + an, noffset + bn, noffset + cn)
+                            },
+                            _ => {
+                                // Either we're missing a shading normal, or at least one of the
+                                // normals is degenerate. Compute the geometric normal, and use
+                                // that for the shading normal.
+                                let edge1 = &vertices[offset + bv] - &vertices[offset + av];
+                                let edge2 = &vertices[offset + cv] - &vertices[offset + av];
+                                let normal = edge1.cross(&edge2).normalized();
+                                normals.push(normal);
+                                (normals.len() - 1, normals.len() - 1, normals.len() - 1)
+                            }
+                        };
+                        tris.push(Tri::new(av, bv, cv, an, bn, cn, at, bt, ct));
                     }
                 }
             }
@@ -131,6 +150,7 @@ impl Mesh {
             mat: material,
             vertices: vertices,
             normals: normals,
+            uvs: uvs,
             tris: tris
         };
         Ok(mesh)
@@ -194,11 +214,16 @@ impl prim::Prim for Mesh {
         let an = &self.normals[tri.an];
         let bn = &self.normals[tri.bn];
         let cn = &self.normals[tri.cn];
+        let at = &self.uvs[tri.at];
+        let bt = &self.uvs[tri.bt];
+        let ct = &self.uvs[tri.ct];
 
         // Uses the Moller-Trumbore intersection algorithm.
         // See <http://en.wikipedia.org/wiki/Moller-Trumbore_intersection_algorithm> for more info.
-        let edge1 = b - a;
-        let edge2 = c - a;
+        let edge1 = a - c;
+        let edge2 = b - c;
+        let uv1 = at - ct;
+        let uv2 = bt - ct;
 
         let p = ray.direction.cross(&edge2);
         let det = edge1.dot(&p);
@@ -207,7 +232,7 @@ impl prim::Prim for Mesh {
         }
 
         let inv_det = 1.0 / det;
-        let t = &ray.origin - &a;
+        let t = &ray.origin - &c;
         let u = &t.dot(&p) * inv_det;
         if u < 0.0 || u > 1.0 {
             return (0.0, prim::SurfaceProperties::zero()); // In plane but not triangle.
@@ -224,18 +249,30 @@ impl prim::Prim for Mesh {
             return (0.0, prim::SurfaceProperties::zero()); // In triangle but behind us.
         }
 
-        // XXX: Maybe use UV coordinates to setup tangent and binormal.
-        // That way we'd get consistent tangents.
         let w = 1.0 - u - v;
-        let normal = (&(&(w * an) + &(u * bn)) + &(v * cn)).normalized();
-        let (tangent, binormal) = normal.coord_system();
-        debug_assert!(normal.is_finite(), "u={}, v={}, w={}, an={}, bn={}, cn={}",
-                u, v, w, an, bn, cn);
-        debug_assert!(tangent.is_finite(), "tan={}, norm={}", tangent, normal);
-        debug_assert!(binormal.is_finite(), "bin={}, norm={}", binormal, normal);
+        let normal = (&(&(u * an) + &(v * bn)) + &(w * cn)).normalized();
+
+        // Compute the derivative dpos/du. See PBRT 3e p. 158.
+        // pos = pos_0 + u * dpos/du + v * dpos/dv
+        // Note: I'm not computing dpdv here because there's no need for it yet.
+        let uv_det = uv1.x * uv2.y + uv1.y * uv2.x;
+        let (tangent, binormal) = if uv_det == 0.0 {
+            // Just use an arbitrary coordinate system for tangent and binormal if we can't
+            // compute analytically.
+            normal.coord_system()
+        }
+        else {
+            // Compute tangent and binormal analytically.
+            // i × j = k, k × i = j
+            // normal × dpdu = binormal, binormal × normal = tangent
+            let inv_uv_det = 1.0 / uv_det;
+            let dpdu = &(&(uv2.y * &uv1) - &(uv1.y * &uv2)) * inv_uv_det;
+            let binormal = normal.cross(&dpdu).normalized();
+            let tangent = binormal.cross(&normal);
+            (tangent, binormal)
+        };
 
         let surface_props = prim::SurfaceProperties::new(normal, tangent, binormal, normal);
-
         return (dist, surface_props);
     }
 }

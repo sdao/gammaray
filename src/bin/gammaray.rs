@@ -10,12 +10,13 @@ pub fn main() {
         material::Material::disney()
                 .base_color(core::Vec::new(0.0, 0.5, 1.0))
                 .roughness(0.5)
-                .metallic(0.5)
+                .metallic(1.0)
+                .anisotropic(1.0)
                 .sheen(1.0)
                 .build(),
         &core::Mat::scale(0.9) *
                 &core::Mat::translation(&core::Vec::new(-4.0, -5.0, -100.0)),
-        "dragon100k.obj").unwrap();
+        "dragon100k_uvs.obj").unwrap();
     let s2 = geom::Sphere::new(
         material::Material::diffuse_light(core::Vec::new(2.0, 2.0, 2.0)),
         core::Mat::translation(&core::Vec::new(12.0, 3.0, -90.0)),

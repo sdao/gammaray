@@ -71,7 +71,7 @@ impl Integrator for PathTracerIntegrator {
                         let rv = rng.next_f32();
 
                         let prob_live = if depth > RUSSIAN_ROULETTE_DEPTH_AGRESSIVE {
-                            core::clamped_lerp(0.0, 0.75, throughput.luminance())
+                            core::clamped_lerp(0.10, 0.75, throughput.luminance())
                         }
                         else {
                             core::clamped_lerp(0.25, 1.00, throughput.luminance())
