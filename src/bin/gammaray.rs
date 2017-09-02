@@ -83,7 +83,7 @@ pub fn main() {
     println!("Aspect ratio: {}, Width: {}, Height: {}", c.aspect_ratio(), width, height);
 
     let mut stage = render::Stage::new(prims);
-    let integrator = render::PathTracerIntegrator {};
+    let integrator = render::BdptIntegrator {};
 
     let mut film = render::Film::new(width, height);
     let mut writer = render::ExrWriter::new("output.exr");

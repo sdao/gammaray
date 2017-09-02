@@ -4,6 +4,7 @@ use geom::util;
 use core;
 
 use std;
+use std::ops::Index;
 
 /// Note: the implementation of a bounding-volume hierarchy in this file is taken from
 /// PBRT, 3rd edition, section 4.3 (starting around page 256).
@@ -101,27 +102,26 @@ impl BvhLinearNode {
     }
 }
 
-pub enum Intersection<'a> {
+pub enum Intersection {
     Hit {
         dist: f32,
         surface_props: prim::SurfaceProperties,
-        prim: &'a Box<prim::Prim>
+        prim_index: usize,
     },
     NoHit
 }
 
-impl<'a> Intersection<'a> {
-    pub fn hit(dist: f32, surface_props: prim::SurfaceProperties, prim: &'a Box<prim::Prim>)
-        -> Intersection<'a>
+impl Intersection {
+    pub fn hit(dist: f32, surface_props: prim::SurfaceProperties, prim_index: usize) -> Intersection
     {
         Intersection::Hit {
             dist: dist,
             surface_props: surface_props,
-            prim: prim
+            prim_index: prim_index
         }
     }
 
-    pub fn no_hit() -> Intersection<'a> {
+    pub fn no_hit() -> Intersection {
         Intersection::NoHit
     }
 }
@@ -360,11 +360,12 @@ impl Bvh {
     pub fn intersect_naive(&self, ray: &core::Ray) -> Intersection {
         let mut closest_dist = std::f32::MAX;
         let mut closest: Intersection = Intersection::no_hit();
-        for prim in &self.prims {
+        for prim_index in 0..self.prims.len() {
+            let prim = &self.prims[prim_index];
             for i in 0..prim.num_components() {
                 let (dist, surface_props) = prim.intersect_world(&ray, i);
                 if dist != 0.0 && dist < closest_dist {
-                    closest = Intersection::hit(dist, surface_props, &prim);
+                    closest = Intersection::hit(dist, surface_props, prim_index);
                     closest_dist = dist;
                 }
             }
@@ -397,7 +398,7 @@ impl Bvh {
                         let prim = &self.prims[prim_index];
                         let (dist, surface_props) = prim.intersect_world(&ray, component_index);
                         if dist != 0.0 && dist < closest_dist {
-                            closest = Intersection::hit(dist, surface_props, prim);
+                            closest = Intersection::hit(dist, surface_props, prim_index);
                             closest_dist = dist;
                         }
                     }
@@ -427,5 +428,13 @@ impl Bvh {
         }
 
         closest
+    }
+}
+
+impl Index<usize> for Bvh {
+    type Output = Box<prim::Prim>;
+
+    fn index(&self, index: usize) -> &Box<prim::Prim> {
+        &self.prims[index]
     }
 }
