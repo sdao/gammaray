@@ -218,3 +218,47 @@ impl IndependentSample<vector::Vec> for UniformSampleCone {
         vector::Vec::new(x, y, z)
     }
 }
+
+pub struct CumulativeDistribution {
+    cdf: std::vec::Vec<f32>,
+}
+
+impl CumulativeDistribution {
+    pub fn new(cdf: std::vec::Vec<f32>) -> CumulativeDistribution {
+        CumulativeDistribution {cdf: cdf}
+    }
+}
+
+impl Sample<usize> for CumulativeDistribution {
+    fn sample<R>(&mut self, rng: &mut R) -> usize where R: Rng {
+        self.ind_sample(rng)
+    }
+}
+
+impl IndependentSample<usize> for CumulativeDistribution {
+    fn ind_sample<R>(&self, rng: &mut R) -> usize where R: Rng {
+        let target = rng.next_f32();
+        match self.cdf.binary_search_by(|x| x.partial_cmp(&target).unwrap()) {
+            Ok(x) => x,
+            Err(x) => x
+        }
+    }
+}
+
+/// Uniformly samples barycentric coordinates for a triangle.
+pub struct UniformSampleBarycentric {
+}
+
+impl Sample<(f32, f32)> for UniformSampleBarycentric {
+    fn sample<R>(&mut self, rng: &mut R) -> (f32, f32) where R: Rng {
+        self.ind_sample(rng)
+    }
+}
+
+impl IndependentSample<(f32, f32)> for UniformSampleBarycentric {
+    fn ind_sample<R>(&self, rng: &mut R) -> (f32, f32) where R: Rng {
+        let (a, b) = (rng.next_f32(), rng.next_f32());
+        let sqrt_a = f32::sqrt(a);
+        (1.0 - sqrt_a, b * sqrt_a)
+    }
+}

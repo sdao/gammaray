@@ -9,6 +9,8 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use rand;
+use rand::distributions::IndependentSample;
 use wavefront_obj;
 
 struct Tri {
@@ -31,6 +33,18 @@ impl Tri {
     {
         Tri {a: a, b: b, c: c, an: an, bn: bn, cn: cn, at: at, bt: bt, ct: ct}
     }
+
+    fn area(&self, vertices: &std::vec::Vec<core::Vec>) -> f32 {
+        // A triangle is half of a corresponding parallelogram.
+        // The area of a parallelogram is given by the length of the cross product of the two sides.
+        // Thus the area of a triangle is half the length of the cross product of two sides.
+        let a = &vertices[self.a];
+        let b = &vertices[self.b];
+        let c = &vertices[self.c];
+        let edge1 = a - c;
+        let edge2 = b - c;
+        0.5 * edge1.cross(&edge2).magnitude()
+    }
 }
 
 pub struct Mesh {
@@ -39,6 +53,7 @@ pub struct Mesh {
     normals: std::vec::Vec<core::Vec>,
     uvs: std::vec::Vec<core::Vec>, // XXX: This is probably wasteful since we only need xy-coords.
     tris: std::vec::Vec<Tri>,
+    area_dist: core::CumulativeDistribution,
 }
 
 impl Mesh {
@@ -131,13 +146,9 @@ impl Mesh {
                             },
                             _ => {
                                 // Either we're missing a shading normal, or at least one of the
-                                // normals is degenerate. Compute the geometric normal, and use
-                                // that for the shading normal.
-                                let edge1 = &vertices[offset + bv] - &vertices[offset + av];
-                                let edge2 = &vertices[offset + cv] - &vertices[offset + av];
-                                let normal = edge1.cross(&edge2).normalized();
-                                normals.push(normal);
-                                (normals.len() - 1, normals.len() - 1, normals.len() - 1)
+                                // normals is degenerate. Use usize::MAX as a sentinel to indicate
+                                // that we should use the geometric normal instead.
+                                (std::usize::MAX, std::usize::MAX, std::usize::MAX)
                             }
                         };
                         tris.push(Tri::new(av, bv, cv, an, bn, cn, at, bt, ct));
@@ -146,15 +157,85 @@ impl Mesh {
             }
         }
 
+        // Compute CDF over area so we can sample uniformly over area.
+        let mut area_cdf = std::vec::Vec::<f32>::with_capacity(tris.len());
+        let mut total_area = 0.0;
+        for i in 0..tris.len() {
+            total_area += tris[i].area(&vertices);
+            area_cdf.push(total_area);
+        }
+        for i in 0..tris.len() {
+            area_cdf[i] = area_cdf[i] / total_area;
+        }
+
+        vertices.shrink_to_fit();
+        normals.shrink_to_fit();
+        uvs.shrink_to_fit();
+        tris.shrink_to_fit();
+        area_cdf.shrink_to_fit();
+
         let mesh = Mesh {
             mat: material,
             vertices: vertices,
             normals: normals,
             uvs: uvs,
-            tris: tris
+            tris: tris,
+            area_dist: core::CumulativeDistribution::new(area_cdf)
         };
         Ok(mesh)
     }
+
+    fn compute_surface_props(&self, tri: &Tri, u: f32, v: f32, w: f32) -> prim::SurfaceProperties {
+        let a = &self.vertices[tri.a];
+        let b = &self.vertices[tri.b];
+        let c = &self.vertices[tri.c];
+        let edge1 = a - c;
+        let edge2 = b - c;
+
+        let at = &self.uvs[tri.at];
+        let bt = &self.uvs[tri.bt];
+        let ct = &self.uvs[tri.ct];
+        let uv1 = at - ct;
+        let uv2 = bt - ct;
+
+        // Geometric normal.
+        let geom_normal = edge1.cross(&edge2).normalized();
+
+        // Shading normal.
+        let normal = if tri.an == std::usize::MAX {
+            // No shading normals. Use geometric normal instead.
+            geom_normal
+        }
+        else {
+            // Compute the shading normal from barycentric coordintes.
+            let an = &self.normals[tri.an];
+            let bn = &self.normals[tri.bn];
+            let cn = &self.normals[tri.cn];
+            (&(&(u * an) + &(v * bn)) + &(w * cn)).normalized()
+        };
+
+        // Compute the derivative dpos/du. See PBRT 3e p. 158.
+        // pos = pos_0 + u * dpos/du + v * dpos/dv
+        // Note: I'm not computing dpdv here because there's no need for it yet.
+        let uv_det = uv1.x * uv2.y + uv1.y * uv2.x;
+        let (tangent, binormal) = if uv_det == 0.0 {
+            // Just use an arbitrary coordinate system for tangent and binormal if we can't
+            // compute analytically.
+            normal.coord_system()
+        }
+        else {
+            // Compute tangent and binormal analytically.
+            // i × j = k, k × i = j
+            // normal × dpdu = binormal, binormal × normal = tangent
+            let inv_uv_det = 1.0 / uv_det;
+            let dpdu = &(&(uv2.y * &uv1) - &(uv1.y * &uv2)) * inv_uv_det;
+            let binormal = normal.cross(&dpdu).normalized();
+            let tangent = binormal.cross(&normal);
+            (tangent, binormal)
+        };
+
+        prim::SurfaceProperties::new(normal, tangent, binormal, geom_normal)
+    } 
 }
 
 impl Display for Mesh {
@@ -211,19 +292,11 @@ impl prim::Prim for Mesh {
         let a = &self.vertices[tri.a];
         let b = &self.vertices[tri.b];
         let c = &self.vertices[tri.c];
-        let an = &self.normals[tri.an];
-        let bn = &self.normals[tri.bn];
-        let cn = &self.normals[tri.cn];
-        let at = &self.uvs[tri.at];
-        let bt = &self.uvs[tri.bt];
-        let ct = &self.uvs[tri.ct];
 
         // Uses the Moller-Trumbore intersection algorithm.
         // See <http://en.wikipedia.org/wiki/Moller-Trumbore_intersection_algorithm> for more info.
         let edge1 = a - c;
         let edge2 = b - c;
-        let uv1 = at - ct;
-        let uv2 = bt - ct;
 
         let p = ray.direction.cross(&edge2);
         let det = edge1.dot(&p);
@@ -250,29 +323,23 @@ impl prim::Prim for Mesh {
         }
 
         let w = 1.0 - u - v;
-        let normal = (&(&(u * an) + &(v * bn)) + &(w * cn)).normalized();
-
-        // Compute the derivative dpos/du. See PBRT 3e p. 158.
-        // pos = pos_0 + u * dpos/du + v * dpos/dv
-        // Note: I'm not computing dpdv here because there's no need for it yet.
-        let uv_det = uv1.x * uv2.y + uv1.y * uv2.x;
-        let (tangent, binormal) = if uv_det == 0.0 {
-            // Just use an arbitrary coordinate system for tangent and binormal if we can't
-            // compute analytically.
-            normal.coord_system()
-        }
-        else {
-            // Compute tangent and binormal analytically.
-            // i × j = k, k × i = j
-            // normal × dpdu = binormal, binormal × normal = tangent
-            let inv_uv_det = 1.0 / uv_det;
-            let dpdu = &(&(uv2.y * &uv1) - &(uv1.y * &uv2)) * inv_uv_det;
-            let binormal = normal.cross(&dpdu).normalized();
-            let tangent = binormal.cross(&normal);
-            (tangent, binormal)
-        };
-
-        let surface_props = prim::SurfaceProperties::new(normal, tangent, binormal, normal);
+        let surface_props = self.compute_surface_props(tri, u, v, w);
         return (dist, surface_props);
+    }
+
+    fn sample(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties) {
+        let tri_index = self.area_dist.ind_sample(rng);
+        let tri = &self.tris[tri_index];
+        let a = &self.vertices[tri.a];
+        let b = &self.vertices[tri.b];
+        let c = &self.vertices[tri.c];
+
+        let uniform_sample_barycentric = core::UniformSampleBarycentric {};
+        let (u, v) = uniform_sample_barycentric.ind_sample(rng);
+        let w = 1.0 - u - v;
+        let pt = &(&(u * a) + &(v * b)) + &(w * c);
+
+        let surface_props = self.compute_surface_props(tri, u, v, w);
+        (pt, surface_props)
     }
 }

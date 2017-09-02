@@ -1,6 +1,8 @@
 use core;
 use material;
 
+use rand;
+
 pub trait Prim : Sync + Send {
     fn num_components(&self) -> usize {
         1
@@ -49,6 +51,11 @@ pub trait Prim : Sync + Send {
             (dist, world_surface_props)
         }
     }
+    /**
+     * Sample a random point on the prim, and returns the position and surface properties at
+     * the sampled point. 
+     */
+    fn sample(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, SurfaceProperties);
 }
 
 /// Properties of the prim surface at the point of an intersection.

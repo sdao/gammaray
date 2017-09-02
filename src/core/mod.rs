@@ -16,6 +16,8 @@ pub use core::quat::Quat;
 mod random;
 pub use core::random::AreaSampleDisk;
 pub use core::random::CosineSampleHemisphere;
+pub use core::random::CumulativeDistribution;
+pub use core::random::UniformSampleBarycentric;
 pub use core::random::UniformSampleSphere;
 pub use core::random::UniformSampleCone;
 

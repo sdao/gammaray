@@ -3,6 +3,9 @@ use geom::prim;
 use core;
 use material;
 
+use rand;
+use rand::distributions::IndependentSample;
+
 pub struct Sphere {
     mat: material::Material,
     xform: core::Xform,
@@ -92,5 +95,11 @@ impl prim::Prim for Sphere {
 
         // Either no isect was found or it was behind us.
         return (0.0, prim::SurfaceProperties::zero())
+    }
+
+    fn sample(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties) {
+        let uniform_sample_sphere = core::UniformSampleSphere {};
+        let pt = &uniform_sample_sphere.ind_sample(rng) * self.radius;
+        (pt, self.compute_surface_props(&pt))
     }
 }
