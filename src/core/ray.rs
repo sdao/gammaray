@@ -3,6 +3,11 @@ use core::vector;
 use std::fmt;
 use std::fmt::Display;
 
+/// The distance to push the origin of each new ray along the normal.
+/// XXX: PBRT says that we should be reprojecting and computing an error bound instead.
+/// XXX: Seems like we need around 1e-3 for floats and 1e-6 for doubles if hardcoding.
+pub const RAY_PUSH_DIST: f32 = 1.0e-3;
+
 #[derive(Clone)]
 pub struct Ray {
     pub origin: vector::Vec,
@@ -34,6 +39,10 @@ impl Ray {
                 self.direction.y < 0.0,
                 self.direction.z < 0.0]
         }
+    }
+
+    pub fn nudge(&self) -> Ray {
+        Ray {origin: &self.origin + &(&self.direction * RAY_PUSH_DIST), direction: self.direction}
     }
 }
 

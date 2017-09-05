@@ -5,6 +5,9 @@ use core;
 
 use std;
 use std::ops::Index;
+use rand;
+use rand::distributions::IndependentSample;
+use rand::distributions::range::Range;
 
 /// Note: the implementation of a bounding-volume hierarchy in this file is taken from
 /// PBRT, 3rd edition, section 4.3 (starting around page 256).
@@ -163,7 +166,8 @@ impl VisitStack {
 pub struct Bvh {
     prims: std::vec::Vec<Box<prim::Prim>>,
     components: std::vec::Vec<(usize, usize)>,
-    nodes: BvhLinearNodeArena
+    nodes: BvhLinearNodeArena,
+    light_indices: std::vec::Vec<usize>,
 }
 
 impl Bvh {
@@ -349,10 +353,23 @@ impl Bvh {
         let mut nodes = BvhLinearNodeArena::with_capacity(arena.len());
         Bvh::flatten_tree(&arena, &mut nodes, root);
 
+        // Cache indices of prims with lights.
+        let mut lights = std::vec::Vec::<usize>::new();
+        for i in 0..prims.len() {
+            if prims[i].material().has_light() {
+                lights.push(i);
+            }
+        }
+
+        ordered_components.shrink_to_fit();
+        nodes.shrink_to_fit();
+        lights.shrink_to_fit();
+
         Bvh {
             prims: prims,
             components: ordered_components,
-            nodes: nodes
+            nodes: nodes,
+            light_indices: lights,
         }
     }
 
@@ -428,6 +445,35 @@ impl Bvh {
         }
 
         closest
+    }
+
+    pub fn visibility(&self, start: &core::Vec, target: &core::Vec) -> bool {
+        // Points are too close. Skip testing and just say they're invisible.
+        if start.is_close(&target, 1e-3) {
+            return false;
+        }
+
+        // Test by shooting a ray from start to target. Visible if there's nothing occluding.
+        let ray = core::Ray::new(start.clone(), (target - start).normalized()).nudge();
+        let target_dist = (target - &ray.origin).magnitude();
+
+        if let Intersection::Hit {dist, surface_props: _, prim_index: _} = self.intersect(&ray) {
+            if dist < (target_dist - 1e-3) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    pub fn sample_light(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, Intersection, f32) {
+        debug_assert!(self.light_indices.len() > 0);
+        let range = Range::new(0, self.light_indices.len());
+        let r = range.ind_sample(rng);
+        let idx = self.light_indices[r];
+        let (pt, surface_props, pdf) = self.prims[idx].sample_world(rng);
+        let intersection = Intersection::hit(0.0, surface_props, idx);
+        (pt, intersection, pdf / (self.light_indices.len() as f32))
     }
 }
 

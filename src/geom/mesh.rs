@@ -53,6 +53,7 @@ pub struct Mesh {
     normals: std::vec::Vec<core::Vec>,
     uvs: std::vec::Vec<core::Vec>, // XXX: This is probably wasteful since we only need xy-coords.
     tris: std::vec::Vec<Tri>,
+    area: f32,
     area_dist: core::CumulativeDistribution,
 }
 
@@ -180,6 +181,7 @@ impl Mesh {
             normals: normals,
             uvs: uvs,
             tris: tris,
+            area: total_area,
             area_dist: core::CumulativeDistribution::new(area_cdf)
         };
         Ok(mesh)
@@ -327,7 +329,7 @@ impl prim::Prim for Mesh {
         return (dist, surface_props);
     }
 
-    fn sample(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties) {
+    fn sample_local(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties, f32) {
         let tri_index = self.area_dist.ind_sample(rng);
         let tri = &self.tris[tri_index];
         let a = &self.vertices[tri.a];
@@ -340,6 +342,7 @@ impl prim::Prim for Mesh {
         let pt = &(&(u * a) + &(v * b)) + &(w * c);
 
         let surface_props = self.compute_surface_props(tri, u, v, w);
-        (pt, surface_props)
+        let pdf = 1.0 / self.area;
+        (pt, surface_props, pdf)
     }
 }

@@ -14,11 +14,12 @@ pub struct MaterialSample {
     pub radiance: core::Vec,
     pub outgoing: core::Vec,
     pub pdf: f32,
+    pub kind: lobes::LobeKind,
 }
 
 pub struct Material {
     display: core::Vec,
-    light: Box<lights::Light>,
+    light: Option<Box<lights::Light>>,
     lobes: std::vec::Vec<Box<lobes::Lobe>>
 }
 
@@ -26,7 +27,7 @@ impl Material {
     pub fn diffuse_light(incandescence: core::Vec) -> Material {
         Material {
             display: incandescence,
-            light: Box::new(lights::DiffuseAreaLight {color: incandescence}),
+            light: Some(Box::new(lights::DiffuseAreaLight {color: incandescence})),
             lobes: vec![]
         }
     }
@@ -34,7 +35,7 @@ impl Material {
     pub fn mirror() -> Material {
         Material {
             display: core::Vec::one(),
-            light: Box::new(lights::DiffuseAreaLight {color: core::Vec::zero()}),
+            light: None,
             lobes: vec![
                 Box::new(lobes::PerfectMirror::new())
             ]
@@ -51,11 +52,82 @@ impl Material {
         &self.display
     }
 
+    pub fn f_world(&self,
+        incoming_world: &core::Vec,
+        outgoing_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties) -> MaterialSample
+    {
+        // Convert from world-space to local space.
+        let incoming_local = incoming_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        let outgoing_local = outgoing_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        
+        let emission = match self.light {
+            Some(ref light) => light.l(&incoming_local),
+            None => core::Vec::zero()
+        };
+
+        let reflect = (incoming_world.dot(&surface_props.geom_normal) *
+                    outgoing_world.dot(&surface_props.geom_normal)) > 0.0;
+        let mut radiance = core::Vec::zero();
+        for lobe in &self.lobes {
+            if (reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
+                    (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION)) {
+                radiance = &radiance + &lobe.f(&incoming_local, &outgoing_local);
+            }
+        }
+
+        MaterialSample {
+            emission: emission,
+            radiance: radiance,
+            outgoing: outgoing_world.clone(),
+            pdf: 1.0,
+            kind: lobes::LOBE_NONE,
+        }
+    }
+
+    pub fn pdf_world(&self,
+        incoming_world: &core::Vec,
+        outgoing_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties) -> f32
+    {
+        // Convert from world-space to local space.
+        let incoming_local = incoming_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        let outgoing_local = outgoing_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        
+        let mut pdf = 0.0;
+        for lobe in &self.lobes {
+            pdf += lobe.pdf(&incoming_local, &outgoing_local);
+        }
+
+        if self.lobes.len() == 0 {
+            0.0
+        }
+        else {
+            pdf / self.lobes.len() as f32
+        }
+    }
+
+    pub fn light_world(&self, incoming_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties) -> core::Vec {
+        let incoming_local = incoming_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        match self.light {
+            Some(ref light) => light.l(&incoming_local),
+            None => core::Vec::zero()
+        }
+    }
+
     /// See PBRT 3e, page 832.
     /// Args:
     ///   incoming_world should face away from the intersection point.
     ///   surface_props should be in world-space.
-    pub fn sample_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties,
+    pub fn sample_f_world(&self,
+        incoming_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties,
         rng: &mut rand::XorShiftRng) -> MaterialSample
     {
         // Convert from world-space to local space.
@@ -67,14 +139,18 @@ impl Material {
                 surface_props.tangent, surface_props.binormal, surface_props.normal);
 
         // Calculate emission. This doesn't depend on reflecting an outgoing ray.
-        let emission = self.light.l(&incoming_local);
+        let emission = match self.light {
+            Some(ref light) => light.l(&incoming_local),
+            None => core::Vec::zero()
+        };
 
         if self.lobes.len() == 0 {
             return MaterialSample {
                 emission: emission,
                 radiance: core::Vec::zero(),
                 outgoing: core::Vec::zero(),
-                pdf: 1.0
+                pdf: 1.0,
+                kind: lobes::LOBE_NONE,
             };
         }
 
@@ -116,8 +192,13 @@ impl Material {
 
         // Normalize; if pdf is zero, then make the radiance black to be safe.
         if pdf == 0.0 {
-            radiance = core::Vec::zero();
-            pdf = 1.0;
+            return MaterialSample {
+                emission: emission,
+                radiance: core::Vec::zero(),
+                outgoing: outgoing_world,
+                pdf: 1.0,
+                kind: lobes::LOBE_NONE,
+            };
         }
 
         debug_assert!(radiance.is_finite());
@@ -129,7 +210,15 @@ impl Material {
             radiance: radiance,
             outgoing: outgoing_world,
             pdf: pdf,
+            kind: lobe.kind(),
         };
+    }
+
+    pub fn has_light(&self) -> bool {
+        match self.light {
+            Some(_) => true,
+            None => false
+        }
     }
 }
 
@@ -207,7 +296,7 @@ impl DisneyMaterialBuilder {
 
         Material {
             display: self._base_color,
-            light: Box::new(lights::NullLight {}),
+            light: None,
             lobes: lobes_list
         }
     }

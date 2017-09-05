@@ -52,10 +52,26 @@ pub trait Prim : Sync + Send {
         }
     }
     /**
-     * Sample a random point on the prim, and returns the position and surface properties at
-     * the sampled point. 
+     * Sample a random point on the prim, with respect to the area of the prim.
+     * Returns the position, surface properties, and pdf at the sampled point. 
      */
-    fn sample(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, SurfaceProperties);
+    fn sample_local(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, SurfaceProperties, f32);
+
+    fn sample_world(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, SurfaceProperties, f32) {
+        let xform = self.local_to_world_xform();
+        let foo = self.sample_local(rng);
+        
+        let world_pos = xform.transform(&foo.0);
+        let surface_props = foo.1;
+        let world_surface_props = SurfaceProperties {
+                normal: xform.transform_normal(&surface_props.normal).normalized(),
+                tangent: xform.transform_dir(&surface_props.tangent).normalized(),
+                binormal: xform.transform_dir(&surface_props.binormal).normalized(),
+                geom_normal: xform.transform_normal(&surface_props.geom_normal).normalized()
+            };
+
+        (world_pos, world_surface_props, foo.2) // XXX pdf scale by area; need to reconsider xform behavior
+    }
 }
 
 /// Properties of the prim surface at the point of an intersection.

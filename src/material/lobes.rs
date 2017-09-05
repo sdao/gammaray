@@ -24,6 +24,7 @@ impl LobeSample {
 
 bitflags! {
     pub struct LobeKind: u32 {
+        const LOBE_NONE         = 0b00000000;
         /// PDF is non-delta-distributed.
         const LOBE_DIFFUSE      = 0b00000001;
         /// PDF is delta-distributed.

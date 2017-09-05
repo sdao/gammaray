@@ -19,12 +19,3 @@ impl Light for DiffuseAreaLight {
         }
     }
 }
-
-pub struct NullLight {
-}
-
-impl Light for NullLight {
-    fn l(&self, _: &core::Vec) -> core::Vec {
-        core::Vec::zero()
-    }
-}
