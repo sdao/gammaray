@@ -178,7 +178,12 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_GLOSSY | LOBE_REFLECTION
+        if self.microfacet.is_delta() {
+            LOBE_SPECULAR | LOBE_REFLECTION
+        }
+        else {
+            LOBE_GLOSSY | LOBE_REFLECTION
+        }
     }
 }
 
@@ -379,7 +384,12 @@ impl Lobe for DisneySpecularTrans {
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_GLOSSY | LOBE_TRANSMISSION
+        if self.microfacet.is_delta() {
+            LOBE_SPECULAR | LOBE_TRANSMISSION
+        }
+        else {
+            LOBE_GLOSSY | LOBE_TRANSMISSION
+        }
     }
 }
 

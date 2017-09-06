@@ -55,7 +55,7 @@ impl Integrator for PathTracerIntegrator {
                     // the hit point (i.e. toward the previous hit point or eye).
                     let incoming_world = -&current_ray.direction;
                     let prim = &bvh[prim_index];
-                    let sample = prim.material().sample_f_world(
+                    let sample = prim.material().sample_world(
                             &incoming_world, &surface_props, rng);
 
                     // Add illumination first, and then update throughput.
@@ -102,20 +102,21 @@ impl Integrator for PathTracerIntegrator {
 thread_local!(static BDPT_CAMERA_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 thread_local!(static BDPT_LIGHT_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 
-// XXX: This struct probably contains too much information.
-// After we finish implementing the BDPT integrator, we should try to trim this struct down.
 struct BdptVertex {
+    // Incoming ray that hit the surface.
+    pub incoming_world: core::Vec,
     // Point of the surface intersection.
     pub point: core::Vec,
-    pub incoming_world: core::Vec,
-    // Intersection of the ray at the surface.
-    pub intersection: geom::Intersection,
-    // Sample of the material properties at the surface interaction.
-    pub sample: material::MaterialSample,
-    // Light throughput *before* interacting with the surface.
-    // (In our terminology, "before" means closer to the camera. This is the opposite of the
-    // terminology used in PBRT.)
+    // Surface properties at the intersection.
+    pub surface_props: geom::SurfaceProperties,
+    // Radiance/importance throughput *before* interacting with the surface.
     pub throughput: core::Vec,
+    // Emission, if the hit occurred on a light.
+    pub emission: core::Vec,
+    // Type of lobe that was sampled at the hit point.
+    pub lobe_kind: material::LobeKind,
+    // Prim that was hit.
+    pub prim_index: usize,
 }
 
 type BdptPath = std::vec::Vec<BdptVertex>;
@@ -142,7 +143,7 @@ impl BdptIntegrator {
                     // the hit point (i.e. toward the previous hit point or eye).
                     let incoming_world = -&current_ray.direction;
                     let prim = &bvh[prim_index];
-                    let sample = prim.material().sample_f_world(
+                    let sample = prim.material().sample_world(
                             &incoming_world, &surface_props, rng);
 
                     throughput = throughput.comp_mult(
@@ -150,14 +151,15 @@ impl BdptIntegrator {
                             (f32::abs(surface_props.normal.dot(&sample.outgoing)) / sample.pdf)));
                     current_ray = core::Ray::new(current_ray.at(dist), sample.outgoing).nudge();
 
-                    // XXX: Would have liked to do this up where prev_throughput is defined but
-                    // that means moving surface_props, which makes Rust borrow checker unhappy.
+                    // Add to the random walk path.
                     storage.push(BdptVertex {
-                            point: hit_point,
-                            incoming_world: incoming_world,
-                            intersection: geom::Intersection::Hit {dist, surface_props, prim_index},
-                            sample: sample,
-                            throughput: prev_throughput
+                        incoming_world: incoming_world,
+                        point: hit_point,
+                        surface_props: surface_props,
+                        throughput: prev_throughput,
+                        emission: sample.emission,
+                        lobe_kind: sample.kind,
+                        prim_index: prim_index,
                     });
 
                     // Do Russian Roulette if this path is "old".
@@ -190,6 +192,71 @@ impl BdptIntegrator {
             depth += 1;
         }
     }
+
+    /// Connects the path according to the given strategy, and returns the radiance collected on
+    /// the path as well as the weight of the path.
+    fn connect(&self,
+        camera_len: usize,
+        light_len: usize,
+        camera_storage: &BdptPath,
+        light_storage: &BdptPath,
+        bvh: &geom::Bvh) -> (core::Vec, f32)
+    {
+        // We only deal with strategies with at least one camera point.
+        debug_assert!(camera_len >= 1);
+        let camera_vertex = &camera_storage[camera_len - 1];
+
+        if light_len == 0 {
+            // Camera path only.
+            let contrib = camera_vertex.throughput.comp_mult(&camera_vertex.emission);
+            return (contrib, 1.0);
+        }
+        else if light_len == 1 {
+            // Direct illumination of camera path by the light.
+            // Connect a camera vertex directly to a light point.
+            let light_vertex = &light_storage[light_storage.len() - light_len];
+
+            // Strategy requires connecting camera and light subpaths.
+            // We can't do that for specular camera samples, so we must skip.
+            // (We ignore reflectance properties for the light vertex in this case.)
+            if camera_vertex.lobe_kind.contains(material::LOBE_SPECULAR) {
+                return (core::Vec::zero(), 0.0);
+            }
+
+            let contrib = if bvh.visibility(&camera_vertex.point, &light_vertex.point) {
+                let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
+                let light_to_camera = -&camera_to_light;
+
+                let camera_material = bvh[camera_vertex.prim_index].material();
+                let light_material = bvh[light_vertex.prim_index].material();
+                let connect_radiance = camera_material.f_world(
+                        &camera_vertex.incoming_world, &camera_to_light,
+                        &camera_vertex.surface_props);
+                let connect_emission = light_material.light_world(
+                        &light_to_camera, &light_vertex.surface_props);
+
+                let normal_falloff = f32::abs(
+                        camera_vertex.surface_props.normal.dot(&camera_to_light));
+                let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
+
+                // Light path pdf was compute as an area measure.
+                // We need to convert from area to solid angle measure.
+                let convert_pdf = (dist * dist)
+                        / f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera));
+
+                &camera_vertex.throughput.comp_mult(&connect_radiance).comp_mult(&connect_emission)
+                        .comp_mult(&light_vertex.throughput) * (normal_falloff / convert_pdf)
+            }
+            else {
+                core::Vec::zero()
+            };
+    
+            return (contrib, 1.0);
+        }
+        else {
+            unimplemented!();
+        }
+    }
 }
 
 impl Integrator for BdptIntegrator {
@@ -205,107 +272,43 @@ impl Integrator for BdptIntegrator {
 
                 let mut light_storage = &mut y.borrow_mut();
                 light_storage.clear();
-                let (pt, intersection, pdf) = bvh.sample_light(rng);
+                let light_sample = bvh.sample_light(rng);
                 light_storage.push(BdptVertex {
-                    point: pt,
                     incoming_world: core::Vec::zero(),
-                    intersection: intersection,
-                    sample: material::MaterialSample {
-                        emission: core::Vec::zero(),
-                        radiance: core::Vec::zero(),
-                        outgoing: core::Vec::zero(),
-                        pdf: pdf,
-                        kind: material::LOBE_NONE,
-                    },
-                    throughput: &core::Vec::one() / pdf
+                    point: light_sample.point,
+                    surface_props: light_sample.surface_props,
+                    throughput: &core::Vec::one() / light_sample.pdf,
+                    emission: core::Vec::zero(),
+                    lobe_kind: material::LOBE_NONE,
+                    prim_index: light_sample.prim_index,
                 });
 
                 for path_len in 1..(camera_storage.len() + light_storage.len() + 1) {
-                    let mut path_total = core::Vec::zero();
-                    let mut weight_total = 0.0; // oh god this is a hacky MIS implementation; using power heuristic
+                    let mut path_light = core::Vec::zero();
+                    let mut path_weight = 0.0; // XXX: do actual MIS instead of even weights.
 
+                    // Determine from camera and light path lengths what connection strategies are
+                    // actually available for paths of this length.
                     let min_camera = std::cmp::max(1, path_len - light_storage.len());
                     let max_camera = std::cmp::min(camera_storage.len(), path_len);
                     debug_assert!(min_camera >= 1);
                     debug_assert!(min_camera <= camera_storage.len());
                     debug_assert!(max_camera >= 1);
                     debug_assert!(max_camera <= camera_storage.len());
-                    // for camera_len in min_camera..(max_camera + 1) {
-                        // let light_len = path_len - camera_len;
-                    for light_len in 0..2 {
-                        let camera_len = path_len - light_len;
-                        if camera_len < 1 || camera_len > camera_storage.len() {
-                            continue;
-                        }
 
-                        // cam vertex always exists
-                        let camera_vertex = &camera_storage[camera_len - 1];
-                        if light_len == 0 {
-                            // Camera path only.
-                            let contrib = camera_vertex.throughput.comp_mult(&camera_vertex.sample.emission);
-                            path_total = &path_total + &(&contrib * 1.0);
-                            weight_total += 1.0;
-                        }
-                        else if light_len == 1 && !camera_vertex.sample.kind.contains(material::LOBE_SPECULAR) {
-                            // doesn't always exist (e.g. light_len = 0)
-                            let light_vertex = &light_storage[light_storage.len() - light_len];
-
-                            // Direct illumination of camera path by the light.
-                            if let geom::Intersection::Hit {dist: _, surface_props: ref camera_surface_props, prim_index: camera_prim_index} = camera_vertex.intersection {
-                                if let geom::Intersection::Hit {dist: _, surface_props: ref light_surface_props, prim_index: light_prim_index} = light_vertex.intersection {
-                                    let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
-                                    let light_to_camera = -&camera_to_light;
-                                    let connect_radiance = bvh[camera_prim_index].material().f_world(&camera_vertex.incoming_world, &camera_to_light, camera_surface_props).radiance;
-                                    let connect_emission = bvh[light_prim_index].material().f_world(&light_to_camera, &core::Vec::zero(), light_surface_props).emission;
-                                    let norm_correct = f32::abs(camera_surface_props.normal.dot(&camera_to_light));
-                                    let vis = bvh.visibility(&camera_vertex.point, &light_vertex.point);
-                                    if vis {
-                                        let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
-                                        // pdf2 converts from area to solid angle measure
-                                        let pdf2 =
-                                                (dist * dist)
-                                                / f32::abs(light_surface_props.normal.dot(&light_to_camera));
-
-                                        let contrib = &camera_vertex.throughput.comp_mult(&connect_radiance).comp_mult(&connect_emission).comp_mult(&light_vertex.throughput) * (norm_correct / pdf2);
-                                        path_total = &path_total + &(&contrib * 1.0);
-                                    }
-                                }
-                            }
-                            // mucho importante: this needs to happen outside of the vis conditional. because we've already sampled and no take-backsies!
-                            weight_total += 1.0;
-                        }
-                        else {
-                            unimplemented!();
-                        }
+                    // Execute all connection strategies.
+                    for camera_len in min_camera..(max_camera + 1) {
+                        let light_len = path_len - camera_len;
+                        let (l, w) = self.connect(
+                                camera_len, light_len, camera_storage, light_storage, bvh);
+                        path_light = &path_light + &l;
+                        path_weight += w;
                     }
 
-                    if weight_total > 0.0 {
-                        light = &light + &(&path_total / weight_total);
+                    if path_weight > 0.0 {
+                        light = &light + &(&path_light / path_weight);
                     }
                 }
-
-                // for camera_vertex in camera_storage.iter() {
-                //     if let geom::Intersection::Hit {dist: _, surface_props: ref camera_surface_props, prim_index: camera_prim_index} = camera_vertex.intersection {
-                //         let light_vertex = &light_storage[0];
-                //         if let geom::Intersection::Hit {dist: _, surface_props: ref light_surface_props, prim_index: light_prim_index} = light_vertex.intersection {
-                //             let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
-                //             let light_to_camera = -&camera_to_light;
-                //             let connect_radiance = bvh[camera_prim_index].material().f_world(&camera_vertex.incoming_world, &camera_to_light, camera_surface_props).radiance;
-                //             let connect_emission = bvh[light_prim_index].material().f_world(&light_to_camera, &core::Vec::zero(), light_surface_props).emission;
-                //             let norm_correct = f32::abs(camera_surface_props.normal.dot(&camera_to_light));
-                //             let mut vis = bvh.visibility(&camera_vertex.point, &light_vertex.point);
-                //             if vis {
-                //                 let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
-                //                 // pdf2 converts from area to solid angle measure
-                //                 let pdf2 =
-                //                         (dist * dist)
-                //                         / f32::abs(light_surface_props.normal.dot(&light_to_camera));
-
-                //                 light = &light + &(&camera_vertex.throughput.comp_mult(&(&connect_radiance * norm_correct)).comp_mult(&connect_emission).comp_mult(&light_vertex.throughput) * (1.0 / pdf2));
-                //             }
-                //         }
-                //     }
-                // }
             });
         });
 

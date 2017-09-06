@@ -52,21 +52,17 @@ impl Material {
         &self.display
     }
 
+    /// Evaluates all the lobes at the given world-space incoming and outgoing vectors.
     pub fn f_world(&self,
         incoming_world: &core::Vec,
         outgoing_world: &core::Vec,
-        surface_props: &geom::SurfaceProperties) -> MaterialSample
+        surface_props: &geom::SurfaceProperties) -> core::Vec
     {
         // Convert from world-space to local space.
         let incoming_local = incoming_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
         let outgoing_local = outgoing_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
-        
-        let emission = match self.light {
-            Some(ref light) => light.l(&incoming_local),
-            None => core::Vec::zero()
-        };
 
         let reflect = (incoming_world.dot(&surface_props.geom_normal) *
                     outgoing_world.dot(&surface_props.geom_normal)) > 0.0;
@@ -78,41 +74,14 @@ impl Material {
             }
         }
 
-        MaterialSample {
-            emission: emission,
-            radiance: radiance,
-            outgoing: outgoing_world.clone(),
-            pdf: 1.0,
-            kind: lobes::LOBE_NONE,
-        }
+        radiance
     }
 
-    pub fn pdf_world(&self,
-        incoming_world: &core::Vec,
-        outgoing_world: &core::Vec,
-        surface_props: &geom::SurfaceProperties) -> f32
+    /// Evaluates the attached light, if any, and returns the emission for the given incoming
+    /// direction.
+    pub fn light_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties)
+        -> core::Vec
     {
-        // Convert from world-space to local space.
-        let incoming_local = incoming_world.world_to_local(
-                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
-        let outgoing_local = outgoing_world.world_to_local(
-                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
-        
-        let mut pdf = 0.0;
-        for lobe in &self.lobes {
-            pdf += lobe.pdf(&incoming_local, &outgoing_local);
-        }
-
-        if self.lobes.len() == 0 {
-            0.0
-        }
-        else {
-            pdf / self.lobes.len() as f32
-        }
-    }
-
-    pub fn light_world(&self, incoming_world: &core::Vec,
-        surface_props: &geom::SurfaceProperties) -> core::Vec {
         let incoming_local = incoming_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
         match self.light {
@@ -125,7 +94,7 @@ impl Material {
     /// Args:
     ///   incoming_world should face away from the intersection point.
     ///   surface_props should be in world-space.
-    pub fn sample_f_world(&self,
+    pub fn sample_world(&self,
         incoming_world: &core::Vec,
         surface_props: &geom::SurfaceProperties,
         rng: &mut rand::XorShiftRng) -> MaterialSample

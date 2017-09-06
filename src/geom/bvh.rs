@@ -114,6 +114,13 @@ pub enum Intersection {
     NoHit
 }
 
+pub struct PrimSample {
+    pub point: core::Vec,
+    pub surface_props: prim::SurfaceProperties,
+    pub prim_index: usize,
+    pub pdf: f32,
+}
+
 impl Intersection {
     pub fn hit(dist: f32, surface_props: prim::SurfaceProperties, prim_index: usize) -> Intersection
     {
@@ -447,6 +454,8 @@ impl Bvh {
         closest
     }
 
+    // Determines whether the target point is visible from the start point, i.e. unoccluded.
+    // Accounts for some numerical instability at both start and end points.
     pub fn visibility(&self, start: &core::Vec, target: &core::Vec) -> bool {
         // Points are too close. Skip testing and just say they're invisible.
         if start.is_close(&target, 1e-3) {
@@ -466,14 +475,22 @@ impl Bvh {
         return true;
     }
 
-    pub fn sample_light(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, Intersection, f32) {
+    // Samples a random point on a light in the scene, and returns a sample indicating the sampled
+    // point, the surface properties, the light prim, and the pdf of the sample.
+    pub fn sample_light(&self, rng: &mut rand::XorShiftRng) -> PrimSample {
         debug_assert!(self.light_indices.len() > 0);
         let range = Range::new(0, self.light_indices.len());
         let r = range.ind_sample(rng);
         let idx = self.light_indices[r];
-        let (pt, surface_props, pdf) = self.prims[idx].sample_world(rng);
-        let intersection = Intersection::hit(0.0, surface_props, idx);
-        (pt, intersection, pdf / (self.light_indices.len() as f32))
+        let (pt, surface_props, pt_pdf) = self.prims[idx].sample_world(rng);
+        let pdf = pt_pdf / (self.light_indices.len() as f32);
+
+        PrimSample {
+            point: pt,
+            surface_props: surface_props,
+            prim_index: idx,
+            pdf: pdf,
+        }
     }
 }
 
