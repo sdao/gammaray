@@ -56,7 +56,8 @@ impl Material {
     pub fn f_world(&self,
         incoming_world: &core::Vec,
         outgoing_world: &core::Vec,
-        surface_props: &geom::SurfaceProperties) -> core::Vec
+        surface_props: &geom::SurfaceProperties,
+        camera_to_light: bool) -> core::Vec
     {
         // Convert from world-space to local space.
         let incoming_local = incoming_world.world_to_local(
@@ -70,7 +71,7 @@ impl Material {
         for lobe in &self.lobes {
             if (reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
                     (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION)) {
-                radiance = &radiance + &lobe.f(&incoming_local, &outgoing_local);
+                radiance = &radiance + &lobe.f(&incoming_local, &outgoing_local, camera_to_light);
             }
         }
 
@@ -97,6 +98,7 @@ impl Material {
     pub fn sample_world(&self,
         incoming_world: &core::Vec,
         surface_props: &geom::SurfaceProperties,
+        camera_to_light: bool,
         rng: &mut rand::XorShiftRng) -> MaterialSample
     {
         // Convert from world-space to local space.
@@ -127,7 +129,7 @@ impl Material {
         let range = Range::new(0, self.lobes.len());
         let r = range.ind_sample(rng);
         let lobe = &self.lobes[r];
-        let sample = lobe.sample_f(&incoming_local, rng);
+        let sample = lobe.sample_f(&incoming_local, camera_to_light, rng);
 
         let outgoing_world = sample.outgoing.local_to_world(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
@@ -154,7 +156,8 @@ impl Material {
                 if idx != r &&
                         ((reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
                         (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION))) {
-                    radiance = &radiance + &self.lobes[idx].f(&incoming_local, &sample.outgoing);
+                    radiance = &radiance +
+                            &self.lobes[idx].f(&incoming_local, &sample.outgoing, camera_to_light);
                 }
             }
         }

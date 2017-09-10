@@ -56,7 +56,7 @@ impl Integrator for PathTracerIntegrator {
                     let incoming_world = -&current_ray.direction;
                     let prim = &bvh[prim_index];
                     let sample = prim.material().sample_world(
-                            &incoming_world, &surface_props, rng);
+                            &incoming_world, &surface_props, true, rng);
 
                     // Add illumination first, and then update throughput.
                     light = &light + &throughput.comp_mult(&sample.emission);
@@ -126,13 +126,14 @@ pub struct BdptIntegrator {
 
 impl BdptIntegrator {
     fn random_walk(
-        initial_ray: &core::Ray, bvh: &geom::Bvh,
-        rng: &mut rand::XorShiftRng, storage: &mut BdptPath)
+        initial_ray: &core::Ray, initial_throughput: &core::Vec, camera_to_light: bool,
+        bvh: &geom::Bvh, rng: &mut rand::XorShiftRng, storage: &mut BdptPath)
     {
+        const MAX_DEPTH: usize = 8;
         let mut depth = 0usize;
-        let mut throughput = core::Vec::one();
+        let mut throughput = initial_throughput.clone();
         let mut current_ray = initial_ray.clone();
-        while !throughput.is_exactly_zero() {
+        while !throughput.is_exactly_zero() && depth < MAX_DEPTH {
             match bvh.intersect(&current_ray) {
                 geom::Intersection::Hit {dist, surface_props, prim_index} => {
                     let prev_throughput = throughput;
@@ -144,7 +145,7 @@ impl BdptIntegrator {
                     let incoming_world = -&current_ray.direction;
                     let prim = &bvh[prim_index];
                     let sample = prim.material().sample_world(
-                            &incoming_world, &surface_props, rng);
+                            &incoming_world, &surface_props, camera_to_light, rng);
 
                     throughput = throughput.comp_mult(
                             &(&sample.radiance *
@@ -165,13 +166,7 @@ impl BdptIntegrator {
                     // Do Russian Roulette if this path is "old".
                     if depth > RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
                         let rv = rng.next_f32();
-
-                        let prob_live = if depth > RUSSIAN_ROULETTE_DEPTH_AGRESSIVE {
-                            core::clamped_lerp(0.10, 0.75, throughput.luminance())
-                        }
-                        else {
-                            core::clamped_lerp(0.25, 1.00, throughput.luminance())
-                        };
+                        let prob_live = core::clamped_lerp(0.25, 0.75, throughput.luminance());
 
                         if rv < prob_live {
                             // The ray lives (more energy = more likely to live).
@@ -211,15 +206,15 @@ impl BdptIntegrator {
             let contrib = camera_vertex.throughput.comp_mult(&camera_vertex.emission);
             return (contrib, 1.0);
         }
-        else if light_len == 1 {
-            // Direct illumination of camera path by the light.
-            // Connect a camera vertex directly to a light point.
-            let light_vertex = &light_storage[light_storage.len() - light_len];
+        else {
+            // Camera path connects with light path.
+            let light_vertex = &light_storage[light_len - 1];
 
             // Strategy requires connecting camera and light subpaths.
-            // We can't do that for specular camera samples, so we must skip.
-            // (We ignore reflectance properties for the light vertex in this case.)
-            if camera_vertex.lobe_kind.contains(material::LOBE_SPECULAR) {
+            // We can't do that for specular camera or light samples, so we must skip in those
+            // cases (and not add weight).
+            if camera_vertex.lobe_kind.contains(material::LOBE_SPECULAR) ||
+                    light_vertex.lobe_kind.contains(material::LOBE_SPECULAR) {
                 return (core::Vec::zero(), 0.0);
             }
 
@@ -231,30 +226,29 @@ impl BdptIntegrator {
                 let light_material = bvh[light_vertex.prim_index].material();
                 let connect_radiance = camera_material.f_world(
                         &camera_vertex.incoming_world, &camera_to_light,
-                        &camera_vertex.surface_props);
-                let connect_emission = light_material.light_world(
-                        &light_to_camera, &light_vertex.surface_props);
+                        &camera_vertex.surface_props, true);
+                let connect_emission = if light_len == 1 {
+                    light_material.light_world(&light_to_camera, &light_vertex.surface_props)
+                } else {
+                    light_material.f_world(
+                            &light_vertex.incoming_world, &light_to_camera,
+                            &light_vertex.surface_props, false)
+                };
 
-                let normal_falloff = f32::abs(
-                        camera_vertex.surface_props.normal.dot(&camera_to_light));
                 let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
-
-                // Light path pdf was compute as an area measure.
-                // We need to convert from area to solid angle measure.
-                let convert_pdf = (dist * dist)
-                        / f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera));
+                let g = f32::abs(camera_vertex.surface_props.normal.dot(&camera_to_light))
+                        * f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera))
+                        / (dist * dist);
+                debug_assert!(!core::is_nearly_zero(dist), "{} ~ 0.0", dist);
 
                 &camera_vertex.throughput.comp_mult(&connect_radiance).comp_mult(&connect_emission)
-                        .comp_mult(&light_vertex.throughput) * (normal_falloff / convert_pdf)
+                        .comp_mult(&light_vertex.throughput) * g
             }
             else {
                 core::Vec::zero()
             };
-    
+            
             return (contrib, 1.0);
-        }
-        else {
-            unimplemented!();
         }
     }
 }
@@ -268,20 +262,33 @@ impl Integrator for BdptIntegrator {
             BDPT_LIGHT_STORAGE.with(|y| {
                 let mut camera_storage = &mut x.borrow_mut();
                 camera_storage.clear();
-                BdptIntegrator::random_walk(initial_ray, bvh, rng, &mut camera_storage);
+                BdptIntegrator::random_walk(
+                        initial_ray, &core::Vec::one(), true, bvh, rng, &mut camera_storage);
 
                 let mut light_storage = &mut y.borrow_mut();
-                light_storage.clear();
                 let light_sample = bvh.sample_light(rng);
+                if light_sample.point_pdf == 0.0 || light_sample.dir_pdf == 0.0 {
+                    return; // Can't divide by zero; chance of this happening is very low.
+                }
+                let light_dir = &light_sample.ray.direction;
+                let light_material = bvh[light_sample.prim_index].material();
+                let initial_importance =
+                        &light_material.light_world(light_dir, &light_sample.surface_props)
+                        * (f32::abs(light_sample.surface_props.normal.dot(light_dir))
+                        / (light_sample.point_pdf * light_sample.dir_pdf));
+                light_storage.clear();
                 light_storage.push(BdptVertex {
                     incoming_world: core::Vec::zero(),
-                    point: light_sample.point,
+                    point: light_sample.ray.origin,
                     surface_props: light_sample.surface_props,
-                    throughput: &core::Vec::one() / light_sample.pdf,
+                    throughput: &core::Vec::one() / light_sample.point_pdf,
                     emission: core::Vec::zero(),
                     lobe_kind: material::LOBE_NONE,
                     prim_index: light_sample.prim_index,
                 });
+                BdptIntegrator::random_walk(
+                        &light_sample.ray.nudge(), &initial_importance, false, bvh, rng,
+                        &mut light_storage);
 
                 for path_len in 1..(camera_storage.len() + light_storage.len() + 1) {
                     let mut path_light = core::Vec::zero();
@@ -289,7 +296,12 @@ impl Integrator for BdptIntegrator {
 
                     // Determine from camera and light path lengths what connection strategies are
                     // actually available for paths of this length.
-                    let min_camera = std::cmp::max(1, path_len - light_storage.len());
+                    let min_camera = if light_storage.len() < path_len {
+                        path_len - light_storage.len()
+                    }
+                    else {
+                        1
+                    };
                     let max_camera = std::cmp::min(camera_storage.len(), path_len);
                     debug_assert!(min_camera >= 1);
                     debug_assert!(min_camera <= camera_storage.len());

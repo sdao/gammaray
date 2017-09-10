@@ -114,11 +114,12 @@ pub enum Intersection {
     NoHit
 }
 
-pub struct PrimSample {
-    pub point: core::Vec,
+pub struct LightSample {
+    pub ray: core::Ray,
     pub surface_props: prim::SurfaceProperties,
     pub prim_index: usize,
-    pub pdf: f32,
+    pub point_pdf: f32,
+    pub dir_pdf: f32,
 }
 
 impl Intersection {
@@ -477,19 +478,20 @@ impl Bvh {
 
     // Samples a random point on a light in the scene, and returns a sample indicating the sampled
     // point, the surface properties, the light prim, and the pdf of the sample.
-    pub fn sample_light(&self, rng: &mut rand::XorShiftRng) -> PrimSample {
+    pub fn sample_light(&self, rng: &mut rand::XorShiftRng) -> LightSample {
         debug_assert!(self.light_indices.len() > 0);
         let range = Range::new(0, self.light_indices.len());
         let r = range.ind_sample(rng);
         let idx = self.light_indices[r];
-        let (pt, surface_props, pt_pdf) = self.prims[idx].sample_world(rng);
-        let pdf = pt_pdf / (self.light_indices.len() as f32);
+        let (ray, surface_props, point_pdf, dir_pdf) = self.prims[idx].sample_ray_world(rng);
+        let new_point_pdf = point_pdf / (self.light_indices.len() as f32);
 
-        PrimSample {
-            point: pt,
+        LightSample {
+            ray: ray,
             surface_props: surface_props,
             prim_index: idx,
-            pdf: pdf,
+            point_pdf: new_point_pdf,
+            dir_pdf: dir_pdf,
         }
     }
 }

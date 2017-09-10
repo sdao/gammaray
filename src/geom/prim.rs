@@ -2,6 +2,7 @@ use core;
 use material;
 
 use rand;
+use rand::distributions::IndependentSample;
 
 pub trait Prim : Sync + Send {
     fn num_components(&self) -> usize {
@@ -28,6 +29,26 @@ pub trait Prim : Sync + Send {
      * Returns the position, surface properties, and pdf at the sampled point.
      */
     fn sample_world(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, SurfaceProperties, f32);
+    /**
+     * Sample a random ray starting from a random point on the prim.
+     * Returns the ray, surface properties at the origin, the pdf of the origin position, and the
+     * pdf of the ray direction.
+     */
+    fn sample_ray_world(&self, rng: &mut rand::XorShiftRng)
+        -> (core::Ray, SurfaceProperties, f32, f32)
+    {
+        let (point, surface_props, point_pdf) = self.sample_world(rng);
+
+        let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: false};
+        let dir = cosine_sample_hemis.ind_sample(rng);
+        let dir_pdf = core::CosineSampleHemisphere::pdf(&dir);
+
+        let (tangent, binormal) = surface_props.normal.coord_system();
+        let dir_world = dir.local_to_world(&tangent, &binormal, &surface_props.normal);
+
+        let light_ray = core::Ray::new(point, dir_world);
+        (light_ray, surface_props, point_pdf, dir_pdf)
+    }
 }
 
 /// Properties of the prim surface at the point of an intersection.

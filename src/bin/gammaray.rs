@@ -88,6 +88,7 @@ pub fn main() {
     let mut film = render::Film::new(width, height);
     let mut writer = render::ExrWriter::new("output.exr");
     let mut iter_count = 0usize;
+    let mut total_secs = 0.0;
     let limit = 200;
     loop {
         if iter_count == limit {
@@ -98,15 +99,14 @@ pub fn main() {
         stage.trace(&c, &integrator, &mut film);
         let stop = std::time::Instant::now();
 
-        if iter_count % 4 == 0 {
-            writer.update(&film);
-            writer.write();
-        }
+        writer.update(&film);
+        writer.write();
 
         let duration = stop - start;
         let secs = duration.as_secs() as f32 + duration.subsec_nanos() as f32 * 1e-9;
-        println!("Iteration {} [duration: {:.3} sec / {:.3} fps]",
-                iter_count, secs, 1.0 / secs);
+        total_secs += secs;
+        println!("Iteration {} [duration: {:.3} sec / {:.3} fps] [total: {:.3} sec]",
+                iter_count, secs, 1.0 / secs, total_secs);
 
         iter_count += 1;
     }

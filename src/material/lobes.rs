@@ -38,7 +38,7 @@ bitflags! {
 }
 
 pub trait Lobe : Display + Sync + Send {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec;
+    fn f(&self, i: &core::Vec, o: &core::Vec, camera_to_light: bool) -> core::Vec;
 
     fn pdf(&self, i: &core::Vec, o: &core::Vec) -> f32 {
         if !i.is_local_same_hemisphere(o) {
@@ -49,11 +49,13 @@ pub trait Lobe : Display + Sync + Send {
         }
     }
 
-    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+    fn sample_f(&self, i: &core::Vec, camera_to_light: bool, rng: &mut rand::XorShiftRng)
+        -> LobeSample
+    {
         // Take a sample direction on the same side of the normal as the incoming direction.
         let cosine_sample_hemis = core::CosineSampleHemisphere {flipped: i.z < 0.0};
         let o = cosine_sample_hemis.ind_sample(rng);
-        let result = self.f(i, &o);
+        let result = self.f(i, &o, camera_to_light);
         let pdf = self.pdf(i, &o);
 
         LobeSample {
@@ -87,7 +89,7 @@ impl DisneyDiffuseRefl {
 }
 
 impl Lobe for DisneyDiffuseRefl {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+    fn f(&self, i: &core::Vec, o: &core::Vec, _: bool) -> core::Vec {
         let f_in = util::fresnel_schlick_weight(i.abs_cos_theta());
         let f_out = util::fresnel_schlick_weight(o.abs_cos_theta());
         let diffuse = &self.color *
@@ -128,7 +130,7 @@ pub struct StandardMicrofacetRefl<Dist: util::MicrofacetDistribution, Fr: util::
 impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
     where Dist: util::MicrofacetDistribution, Fr: util::Fresnel
 {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+    fn f(&self, i: &core::Vec, o: &core::Vec, _: bool) -> core::Vec {
         let cos_theta_in = i.abs_cos_theta();
         let cos_theta_out = o.abs_cos_theta();
         let half_unnorm = i + o;
@@ -153,7 +155,9 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
         }
     }
 
-    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+    fn sample_f(&self, i: &core::Vec, camera_to_light: bool, rng: &mut rand::XorShiftRng)
+        -> LobeSample
+    {
         // Sample microfacet orientation (half) and reflected direction (o).
         if i.z == 0.0 {
             LobeSample::zero()
@@ -166,7 +170,7 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
             }
             else {
                 // Compute PDF of outoing vector for microfacet reflection.
-                let result = self.f(i, &o);
+                let result = self.f(i, &o, camera_to_light);
                 let pdf = self.microfacet.pdf(i, &half) / (4.0 * i.dot(&half));
                 LobeSample {
                     result: result,
@@ -268,7 +272,7 @@ impl DisneySpecularTrans {
 }
 
 impl Lobe for DisneySpecularTrans {
-    fn f(&self, i: &core::Vec, o: &core::Vec) -> core::Vec {
+    fn f(&self, i: &core::Vec, o: &core::Vec, camera_to_light: bool) -> core::Vec {
         // This is defined for transmission only.
         if i.is_local_same_hemisphere(&o) {
             return core::Vec::zero();
@@ -306,11 +310,12 @@ impl Lobe for DisneySpecularTrans {
         let g = self.microfacet.g(i, o);
 
         let sqrt_denom = i.dot(&half) + eta * &o.dot(&half);
+        let factor = if camera_to_light { 1.0 } else { eta };
         let fresnel_inverse = &core::Vec::one() - &fresnel; // Amount transmitted!
 
         let res = &self.color.comp_mult(&fresnel_inverse) *
                 f32::abs(
-                    d * g * f32::abs(o.dot(&half)) * f32::abs(i.dot(&half)) /
+                    d * g * factor * factor * f32::abs(o.dot(&half)) * f32::abs(i.dot(&half)) /
                     (cos_theta_out * cos_theta_in * sqrt_denom * sqrt_denom)
                 );
         return res;
@@ -346,7 +351,9 @@ impl Lobe for DisneySpecularTrans {
         }
     }
 
-    fn sample_f(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> LobeSample {
+    fn sample_f(&self, i: &core::Vec, camera_to_light: bool, rng: &mut rand::XorShiftRng)
+        -> LobeSample
+    {
         // Sample microfacet orientation (half) and reflected direction (o).
         if i.z == 0.0 {
             LobeSample::zero()
@@ -370,7 +377,7 @@ impl Lobe for DisneySpecularTrans {
             }
             else {
                 // Compute PDF of outoing vector for microfacet transmission.
-                let result = self.f(i, &o);
+                let result = self.f(i, &o, camera_to_light);
                 let pdf = self.pdf(i, &o);
                 debug_assert!(result.is_finite());
 
@@ -409,7 +416,7 @@ impl PerfectMirror {
 }
 
 impl Lobe for PerfectMirror {
-    fn f(&self, _: &core::Vec, o: &core::Vec) -> core::Vec {
+    fn f(&self, _: &core::Vec, o: &core::Vec, _: bool) -> core::Vec {
         &core::Vec::one() / o.abs_cos_theta()
     }
 
@@ -417,9 +424,11 @@ impl Lobe for PerfectMirror {
         1.0
     }
 
-    fn sample_f(&self, i: &core::Vec, _: &mut rand::XorShiftRng) -> LobeSample {
+    fn sample_f(&self, i: &core::Vec, camera_to_light: bool, _: &mut rand::XorShiftRng)
+        -> LobeSample
+    {
         let o = core::Vec::new(-i.x, -i.y, i.z);
-        let result = self.f(i, &o);
+        let result = self.f(i, &o, camera_to_light);
         let pdf = self.pdf(i, &o);
 
         LobeSample {
