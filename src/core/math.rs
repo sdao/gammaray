@@ -50,6 +50,13 @@ pub fn is_positive(x: f32) -> bool {
 }
 
 /**
+ * Determines whether two numbers are close, within a user-provided epsilon.
+ */
+pub fn is_close(x: f32, y: f32, eps: f32) -> bool {
+    f32::abs(x - y) < eps
+}
+
+/**
  * Evaluates a triangle filter with width = 0.5 (support = 1.0) for a
  * specified offset from the pixel center. The values are not normalized,
  * i.e., the integral of the filter over the 1x1 square around the point.

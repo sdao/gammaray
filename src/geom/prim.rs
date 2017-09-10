@@ -43,8 +43,8 @@ pub trait Prim : Sync + Send {
         let dir = cosine_sample_hemis.ind_sample(rng);
         let dir_pdf = core::CosineSampleHemisphere::pdf(&dir);
 
-        let (tangent, binormal) = surface_props.normal.coord_system();
-        let dir_world = dir.local_to_world(&tangent, &binormal, &surface_props.normal);
+        let (tangent, binormal) = surface_props.geom_normal.coord_system();
+        let dir_world = dir.local_to_world(&tangent, &binormal, &surface_props.geom_normal);
 
         let light_ray = core::Ray::new(point, dir_world);
         (light_ray, surface_props, point_pdf, dir_pdf)

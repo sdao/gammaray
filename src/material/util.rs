@@ -251,7 +251,7 @@ impl MicrofacetDistribution for GgxDistribution {
     }
 
     fn is_delta(&self) -> bool {
-        self.ax < 0.01 || self.ay < 0.01
+        self.ax < 0.1 || self.ay < 0.1
     }
 }
 
@@ -313,6 +313,6 @@ impl MicrofacetDistribution for Gtr1Distribution {
     }
 
     fn is_delta(&self) -> bool {
-        self.alpha < 0.01
+        self.alpha < 0.1
     }
 }

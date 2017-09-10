@@ -58,9 +58,9 @@ impl Vec {
     }
 
     pub fn is_close(&self, v: &Vec, epsilon: f32) -> bool {
-        f32::abs(v.x - self.x) < epsilon &&
-                f32::abs(v.y - self.y) < epsilon &&
-                f32::abs(v.z - self.z) < epsilon
+        math::is_close(v.x, self.x, epsilon) &&
+                math::is_close(v.y, self.y, epsilon) &&
+                math::is_close(v.z, self.z, epsilon)
     }
 
     pub fn magnitude(&self) -> f32 {

@@ -99,6 +99,8 @@ impl Integrator for PathTracerIntegrator {
     }
 }
 
+const BDPT_RUSSIAN_ROULETTE_DEPTH: usize = 4;
+const BDPT_MAX_DEPTH: usize = 8;
 thread_local!(static BDPT_CAMERA_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 thread_local!(static BDPT_LIGHT_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 
@@ -129,11 +131,10 @@ impl BdptIntegrator {
         initial_ray: &core::Ray, initial_throughput: &core::Vec, camera_to_light: bool,
         bvh: &geom::Bvh, rng: &mut rand::XorShiftRng, storage: &mut BdptPath)
     {
-        const MAX_DEPTH: usize = 8;
         let mut depth = 0usize;
         let mut throughput = initial_throughput.clone();
         let mut current_ray = initial_ray.clone();
-        while !throughput.is_exactly_zero() && depth < MAX_DEPTH {
+        while !throughput.is_exactly_zero() && depth < BDPT_MAX_DEPTH {
             match bvh.intersect(&current_ray) {
                 geom::Intersection::Hit {dist, surface_props, prim_index} => {
                     let prev_throughput = throughput;
@@ -150,6 +151,9 @@ impl BdptIntegrator {
                     throughput = throughput.comp_mult(
                             &(&sample.radiance *
                             (f32::abs(surface_props.normal.dot(&sample.outgoing)) / sample.pdf)));
+                    throughput = &throughput *
+                            BdptIntegrator::correct_shading_normal(
+                            &incoming_world, &sample.outgoing, &surface_props, camera_to_light);
                     current_ray = core::Ray::new(current_ray.at(dist), sample.outgoing).nudge();
 
                     // Add to the random walk path.
@@ -164,7 +168,7 @@ impl BdptIntegrator {
                     });
 
                     // Do Russian Roulette if this path is "old".
-                    if depth > RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
+                    if depth >= BDPT_RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
                         let rv = rng.next_f32();
                         let prob_live = core::clamped_lerp(0.25, 0.75, throughput.luminance());
 
@@ -185,6 +189,28 @@ impl BdptIntegrator {
             }
 
             depth += 1;
+        }
+    }
+
+    /// See PBRT 3e p. 963.
+    fn correct_shading_normal(
+        incoming_world: &core::Vec, outgoing_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties, camera_to_light: bool) -> f32
+    {
+        if camera_to_light {
+            1.0
+        }
+        else {
+            let num = f32::abs(incoming_world.dot(&surface_props.normal)) *
+                    f32::abs(outgoing_world.dot(&surface_props.geom_normal));
+            let denom = f32::abs(incoming_world.dot(&surface_props.geom_normal)) *
+                    f32::abs(outgoing_world.dot(&surface_props.normal));
+            if denom == 0.0 {
+                0.0
+            }
+            else {
+                num / denom
+            }
         }
     }
 
@@ -218,37 +244,46 @@ impl BdptIntegrator {
                 return (core::Vec::zero(), 0.0);
             }
 
-            let contrib = if bvh.visibility(&camera_vertex.point, &light_vertex.point) {
-                let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
-                let light_to_camera = -&camera_to_light;
+            let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
+            let light_to_camera = -&camera_to_light;
 
-                let camera_material = bvh[camera_vertex.prim_index].material();
-                let light_material = bvh[light_vertex.prim_index].material();
-                let connect_radiance = camera_material.f_world(
-                        &camera_vertex.incoming_world, &camera_to_light,
-                        &camera_vertex.surface_props, true);
-                let connect_emission = if light_len == 1 {
-                    light_material.light_world(&light_to_camera, &light_vertex.surface_props)
-                } else {
-                    light_material.f_world(
-                            &light_vertex.incoming_world, &light_to_camera,
-                            &light_vertex.surface_props, false)
-                };
-
-                let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
-                let g = f32::abs(camera_vertex.surface_props.normal.dot(&camera_to_light))
-                        * f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera))
-                        / (dist * dist);
-                debug_assert!(!core::is_nearly_zero(dist), "{} ~ 0.0", dist);
-
-                &camera_vertex.throughput.comp_mult(&connect_radiance).comp_mult(&connect_emission)
-                        .comp_mult(&light_vertex.throughput) * g
+            let camera_material = bvh[camera_vertex.prim_index].material();
+            let light_material = bvh[light_vertex.prim_index].material();
+            let connect_radiance = camera_material.f_world(
+                    &camera_vertex.incoming_world, &camera_to_light,
+                    &camera_vertex.surface_props, true);
+            let connect_emission = if light_len == 1 {
+                light_material.light_world(
+                        &light_to_camera, &light_vertex.surface_props)
             }
             else {
-                core::Vec::zero()
+                light_material.f_world(
+                        &light_vertex.incoming_world, &light_to_camera,
+                        &light_vertex.surface_props, false)
             };
+
+            let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
+            let g = f32::abs(camera_vertex.surface_props.normal.dot(&camera_to_light))
+                    * f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera))
+                    / (dist * dist);
+            debug_assert!(!core::is_nearly_zero(dist), "{} ~ 0.0", dist);
+
+            let contrib = &camera_vertex.throughput
+                    .comp_mult(&connect_radiance)
+                    .comp_mult(&connect_emission)
+                    .comp_mult(&light_vertex.throughput) * g;
             
-            return (contrib, 1.0);
+            // Delay visibility testing until the very end. Try to avoid visibility testing if the
+            // contribution is already black.
+            if contrib.is_nearly_zero() {
+                return (contrib, 1.0);
+            }
+            else if bvh.visibility(&camera_vertex.point, &light_vertex.point) {
+                return (contrib, 1.0);
+            }
+            else {
+                return (core::Vec::zero(), 1.0);
+            }
         }
     }
 }

@@ -33,7 +33,7 @@ pub fn main() {
         material::Material::disney()
                 .base_color(core::Vec::new(1.0, 1.0, 1.0))
                 .specular_trans(1.0)
-                .roughness(0.0)
+                .roughness(0.2)
                 .ior(1.8)
                 .metallic(0.0)
                 .build(),
