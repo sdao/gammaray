@@ -9,17 +9,17 @@ use rand::distributions::IndependentSample;
 
 pub struct Sphere {
     mat: material::Material,
-    xform: core::Xform,
     radius: f32,
+    origin: core::Vec,
 }
 
 impl Sphere {
-    pub fn new(material: material::Material, mat: core::Mat, radius: f32) -> Sphere
+    pub fn new(material: material::Material, xf_mat: core::Mat, radius: f32) -> Sphere
     {
         Sphere {
             mat: material,
-            xform: core::Xform::new(mat),
             radius: radius,
+            origin: core::Xform::new(xf_mat).transform(&core::Vec::zero()),
         }
     }
 }
@@ -29,7 +29,7 @@ impl Sphere {
         // Example: normal = (1, 0, 0)
         //          tangent = (0, 0, -1)
         //          binormal: (0, -1, 0)
-        let normal = pt.normalized();
+        let normal = (pt - &self.origin).normalized();
         if core::is_nearly_zero(normal.x) && core::is_nearly_zero(normal.z) {
             // Singularity at top or bottom.
             let tangent = core::Vec::x_axis();
@@ -54,26 +54,28 @@ impl prim::Prim for Sphere {
         &self.mat
     }
 
-    fn local_to_world_xform(&self) -> &core::Xform {
-        &self.xform
-    }
-
-    fn bbox_local(&self, _: usize) -> core::BBox {
+    fn bbox_world(&self, _: usize) -> core::BBox {
         core::BBox {
-            min: core::Vec::new(-self.radius, -self.radius, -self.radius),
-            max: core::Vec::new(self.radius, self.radius, self.radius)
+            min: core::Vec::new(
+                self.origin.x - self.radius,
+                self.origin.y - self.radius,
+                self.origin.z - self.radius),
+            max: core::Vec::new(
+                self.origin.x + self.radius,
+                self.origin.y + self.radius,
+                self.origin.z + self.radius)
         }
     }
 
-    fn intersect_local(&self, ray: &core::Ray, _: usize) -> (f32, prim::SurfaceProperties) {
-        let origin = &ray.origin;
+    fn intersect_world(&self, ray: &core::Ray, _: usize) -> (f32, prim::SurfaceProperties) {
+        let origin = &ray.origin - &self.origin;
         let l = &ray.direction;
 
         // See Wikipedia:
         // <http://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection>
         let a = l.dot(l);
-        let b = l.dot(origin);
-        let c = origin.dot(origin) - (self.radius * self.radius);
+        let b = l.dot(&origin);
+        let c = origin.dot(&origin) - (self.radius * self.radius);
 
         let discriminant = (b * b) - (a * c);
 
@@ -98,9 +100,11 @@ impl prim::Prim for Sphere {
         return (0.0, prim::SurfaceProperties::zero())
     }
 
-    fn sample_local(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties, f32) {
+    fn sample_world(&self, rng: &mut rand::XorShiftRng)
+            -> (core::Vec, prim::SurfaceProperties, f32)
+    {
         let uniform_sample_sphere = core::UniformSampleSphere {};
-        let pt = &uniform_sample_sphere.ind_sample(rng) * self.radius;
+        let pt = &self.origin + &(&uniform_sample_sphere.ind_sample(rng) * self.radius);
         let surface_props = self.compute_surface_props(&pt);
         let pdf = 1.0 / (4.0 * std::f32::consts::PI * self.radius * self.radius);
         (pt, surface_props, pdf)

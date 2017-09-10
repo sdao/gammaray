@@ -58,7 +58,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn from_obj<P: AsRef<Path>>(material: material::Material, mat: core::Mat, path: P)
+    pub fn from_obj<P: AsRef<Path>>(material: material::Material, xf_mat: core::Mat, path: P)
         -> Result<Mesh, String>
     {
         let mut file: File;
@@ -94,7 +94,7 @@ impl Mesh {
         let mut normals = std::vec::Vec::<core::Vec>::new();
         let mut uvs = std::vec::Vec::<core::Vec>::new();
         let mut tris = std::vec::Vec::<Tri>::new();
-        let xform = core::Xform::new(mat);
+        let xform = core::Xform::new(xf_mat);
         for obj in obj_set.objects {
             // Copy all vertices.
             let offset = vertices.len();
@@ -259,17 +259,6 @@ impl prim::Prim for Mesh {
         &self.mat
     }
 
-    fn local_to_world_xform(&self) -> &core::Xform {
-        &core::Xform::identity_ref()
-    }
-
-    /**
-     * This is unimplemented for meshes, because meshes are always stored in world space.
-     */
-    fn bbox_local(&self, _: usize) -> core::BBox {
-        unreachable!();
-    }
-
     fn bbox_world(&self, component: usize) -> core::BBox {
         let tri = &self.tris[component];
         core::BBox::empty()
@@ -278,17 +267,6 @@ impl prim::Prim for Mesh {
                 .union_with(&self.vertices[tri.c])
     }
 
-    /**
-     * This is unimplemented for meshes, because meshes are always stored in world space.
-     */
-    fn intersect_local(&self, _: &core::Ray, _: usize) -> (f32, prim::SurfaceProperties) {
-        unreachable!();
-    }
-
-    /**
-     * Intersects the given ray in world space with the prim, and returns the distance along the
-     * ray and the surface properties at the point of intersection.
-     */
     fn intersect_world(&self, ray: &core::Ray, component: usize) -> (f32, prim::SurfaceProperties) {
         let tri = &self.tris[component];
         let a = &self.vertices[tri.a];
@@ -329,7 +307,9 @@ impl prim::Prim for Mesh {
         return (dist, surface_props);
     }
 
-    fn sample_local(&self, rng: &mut rand::XorShiftRng) -> (core::Vec, prim::SurfaceProperties, f32) {
+    fn sample_world(&self, rng: &mut rand::XorShiftRng)
+            -> (core::Vec, prim::SurfaceProperties, f32)
+    {
         let tri_index = self.area_dist.ind_sample(rng);
         let tri = &self.tris[tri_index];
         let a = &self.vertices[tri.a];
