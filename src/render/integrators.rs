@@ -307,9 +307,9 @@ impl Integrator for BdptIntegrator {
                 }
                 let light_dir = &light_sample.ray.direction;
                 let light_material = bvh[light_sample.prim_index].material();
-                let initial_importance =
+                let initial_emission =
                         &light_material.light_world(light_dir, &light_sample.surface_props)
-                        * (f32::abs(light_sample.surface_props.normal.dot(light_dir))
+                        * (f32::abs(light_sample.surface_props.geom_normal.dot(light_dir))
                         / (light_sample.point_pdf * light_sample.dir_pdf));
                 light_storage.clear();
                 light_storage.push(BdptVertex {
@@ -322,7 +322,7 @@ impl Integrator for BdptIntegrator {
                     prim_index: light_sample.prim_index,
                 });
                 BdptIntegrator::random_walk(
-                        &light_sample.ray.nudge(), &initial_importance, false, bvh, rng,
+                        &light_sample.ray.nudge(), &initial_emission, false, bvh, rng,
                         &mut light_storage);
 
                 for path_len in 1..(camera_storage.len() + light_storage.len() + 1) {

@@ -83,10 +83,8 @@ impl Material {
     pub fn light_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties)
         -> core::Vec
     {
-        let incoming_local = incoming_world.world_to_local(
-                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
         match self.light {
-            Some(ref light) => light.l(&incoming_local),
+            Some(ref light) => light.l_world(incoming_world, surface_props),
             None => core::Vec::zero()
         }
     }
@@ -110,8 +108,10 @@ impl Material {
                 surface_props.tangent, surface_props.binormal, surface_props.normal);
 
         // Calculate emission. This doesn't depend on reflecting an outgoing ray.
+        // Note that lighting isn't computed using the shading space (since it doesn't depend on
+        // shading normals/tangents/binormals).
         let emission = match self.light {
-            Some(ref light) => light.l(&incoming_local),
+            Some(ref light) => light.l_world(incoming_world, surface_props),
             None => core::Vec::zero()
         };
 
