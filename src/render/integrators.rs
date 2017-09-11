@@ -299,6 +299,9 @@ impl Integrator for BdptIntegrator {
                 camera_storage.clear();
                 BdptIntegrator::random_walk(
                         initial_ray, &core::Vec::one(), true, bvh, rng, &mut camera_storage);
+                if camera_storage.len() == 0 {
+                    return; // Camera ray escaped.
+                }
 
                 let mut light_storage = &mut y.borrow_mut();
                 let light_sample = bvh.sample_light(rng);
