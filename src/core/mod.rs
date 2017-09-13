@@ -14,6 +14,7 @@ mod quat;
 pub use core::quat::Quat;
 
 mod random;
+pub use core::random::new_xor_shift_rng;
 pub use core::random::AreaSampleDisk;
 pub use core::random::CosineSampleHemisphere;
 pub use core::random::CumulativeDistribution;

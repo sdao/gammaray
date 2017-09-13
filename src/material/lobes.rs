@@ -406,6 +406,27 @@ impl Display for DisneySpecularTrans {
     }
 }
 
+pub struct PerfectDiffuse {
+}
+
+impl PerfectDiffuse {
+    pub fn new() -> PerfectDiffuse {
+        PerfectDiffuse {}
+    }
+}
+
+impl Lobe for PerfectDiffuse {
+    fn f(&self, _: &core::Vec, _: &core::Vec, _: bool) -> core::Vec {
+        &core::Vec::new(0.5, 0.5, 0.5) * std::f32::consts::FRAC_1_PI
+    }
+}
+
+impl Display for PerfectDiffuse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PerfectDiffuse")
+    }
+}
+
 pub struct PerfectMirror {
 }
 

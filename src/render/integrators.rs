@@ -185,6 +185,17 @@ impl BdptIntegrator {
                 },
                 geom::Intersection::NoHit => {
                     throughput = core::Vec::zero();
+
+                    // As if we hit a black infinite area light.
+                    storage.push(BdptVertex {
+                        incoming_world: -&current_ray.direction,
+                        point: core::Vec::zero(),
+                        surface_props: geom::SurfaceProperties::zero(),
+                        throughput: throughput,
+                        emission: core::Vec::zero(),
+                        lobe_kind: material::LOBE_NONE,
+                        prim_index: std::usize::MAX,
+                    });
                 }
             }
 
@@ -228,6 +239,10 @@ impl BdptIntegrator {
         let camera_vertex = &camera_storage[camera_len - 1];
 
         if light_len == 0 {
+            if camera_vertex.prim_index == std::usize::MAX {
+                return (core::Vec::zero(), 1.0);
+            }
+
             // Camera path only.
             let contrib = camera_vertex.throughput.comp_mult(&camera_vertex.emission);
             return (contrib, 1.0);
@@ -235,6 +250,10 @@ impl BdptIntegrator {
         else {
             // Camera path connects with light path.
             let light_vertex = &light_storage[light_len - 1];
+
+            if camera_vertex.prim_index == std::usize::MAX || light_vertex.prim_index == std::usize::MAX {
+                return (core::Vec::zero(), 1.0);
+            }
 
             // Strategy requires connecting camera and light subpaths.
             // We can't do that for specular camera or light samples, so we must skip in those
@@ -354,7 +373,7 @@ impl Integrator for BdptIntegrator {
                         path_light = &path_light + &l;
                         path_weight += w;
                     }
-
+    
                     if path_weight > 0.0 {
                         light = &light + &(&path_light / path_weight);
                     }

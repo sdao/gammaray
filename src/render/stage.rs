@@ -5,8 +5,6 @@ use core;
 use geom;
 
 use std;
-use rand;
-use rand::{Rng, SeedableRng};
 use rayon::prelude::*;
 
 pub struct Stage {
@@ -31,12 +29,7 @@ impl Stage {
         let bvh = &self.bvh;
         self.sample_storage.par_iter_mut().for_each(|sample| {
             let ray = camera.compute_ray(sample.s, sample.t);
-            let mut thread_rng = rand::thread_rng();
-            let mut rng = rand::XorShiftRng::from_seed([
-                    thread_rng.next_u32(),
-                    thread_rng.next_u32(),
-                    thread_rng.next_u32(),
-                    thread_rng.next_u32()]);
+            let mut rng = core::new_xor_shift_rng();
             sample.color = integrator.integrate(&ray, bvh, &mut rng);
         });
         film.report_samples(&self.sample_storage);

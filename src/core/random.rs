@@ -1,13 +1,23 @@
 use core::vector;
 
 use std;
-use rand::Rng;
+use rand;
+use rand::{Rng, SeedableRng};
 use rand::distributions::{IndependentSample, Sample};
 use rand::distributions::normal::StandardNormal;
 use rand::distributions::range::Range;
 
 /** The number of steradians in a sphere (4 * Pi). */
 const STERADIANS_PER_SPHERE: f32 = std::f32::consts::PI * 4.0;
+
+pub fn new_xor_shift_rng() -> rand::XorShiftRng {
+    let mut thread_rng = rand::thread_rng();
+    rand::XorShiftRng::from_seed([
+            thread_rng.next_u32(),
+            thread_rng.next_u32(),
+            thread_rng.next_u32(),
+            thread_rng.next_u32()])
+}
 
 /**
  * Samples a unit disk, ensuring that the samples are uniformally distributed

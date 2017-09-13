@@ -32,6 +32,16 @@ impl Material {
         }
     }
 
+    pub fn diffuse() -> Material {
+        Material {
+            display: core::Vec::one(),
+            light: None,
+            lobes: vec![
+                Box::new(lobes::PerfectDiffuse::new())
+            ]
+        }
+    }
+
     pub fn mirror() -> Material {
         Material {
             display: core::Vec::one(),
@@ -59,6 +69,10 @@ impl Material {
         surface_props: &geom::SurfaceProperties,
         camera_to_light: bool) -> core::Vec
     {
+        debug_assert!(core::is_close(surface_props.normal.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.tangent.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.binormal.magnitude(), 1.0, 1e-3));
+
         // Convert from world-space to local space.
         let incoming_local = incoming_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
@@ -83,6 +97,10 @@ impl Material {
     pub fn light_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties)
         -> core::Vec
     {
+        debug_assert!(core::is_close(surface_props.normal.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.tangent.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.binormal.magnitude(), 1.0, 1e-3));
+        
         match self.light {
             Some(ref light) => light.l_world(incoming_world, surface_props),
             None => core::Vec::zero()
@@ -99,6 +117,10 @@ impl Material {
         camera_to_light: bool,
         rng: &mut rand::XorShiftRng) -> MaterialSample
     {
+        debug_assert!(core::is_close(surface_props.normal.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.tangent.magnitude(), 1.0, 1e-3));
+        debug_assert!(core::is_close(surface_props.binormal.magnitude(), 1.0, 1e-3));
+
         // Convert from world-space to local space.
         let incoming_local = incoming_world.world_to_local(
                 &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
