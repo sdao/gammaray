@@ -251,15 +251,18 @@ impl BdptIntegrator {
             // Camera path connects with light path.
             let light_vertex = &light_storage[light_len - 1];
 
-            if camera_vertex.prim_index == std::usize::MAX || light_vertex.prim_index == std::usize::MAX {
+            if camera_vertex.prim_index == std::usize::MAX ||
+                    light_vertex.prim_index == std::usize::MAX {
                 return (core::Vec::zero(), 1.0);
             }
 
             // Strategy requires connecting camera and light subpaths.
             // We can't do that for specular camera or light samples, so we must skip in those
             // cases (and not add weight).
-            if camera_vertex.lobe_kind.contains(material::LOBE_SPECULAR) ||
-                    light_vertex.lobe_kind.contains(material::LOBE_SPECULAR) {
+            // XXX: We're checking LOBE_CONNECTIBLE for now because we want to skip both
+            // specular and some low-pdf glossy lobes (until we have full MIS).
+            if !camera_vertex.lobe_kind.contains(material::LOBE_CONNECTIBLE) ||
+                    !light_vertex.lobe_kind.contains(material::LOBE_CONNECTIBLE) {
                 return (core::Vec::zero(), 0.0);
             }
 

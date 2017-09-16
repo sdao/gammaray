@@ -114,7 +114,6 @@ pub trait MicrofacetDistribution : Sync + Send{
     fn g(&self, i: &core::Vec, o: &core::Vec) -> f32;
     fn sample_half(&self, i: &core::Vec, rng: &mut rand::XorShiftRng) -> core::Vec;
     fn pdf(&self, i: &core::Vec, half: &core::Vec) -> f32;
-    fn is_delta(&self) -> bool;
 }
 
 pub struct GgxDistribution {
@@ -249,10 +248,6 @@ impl MicrofacetDistribution for GgxDistribution {
             self.d(half) * self.g1(i) * f32::abs(i.dot(half)) / f32::abs(cos_theta)
         }
     }
-
-    fn is_delta(&self) -> bool {
-        self.ax < 0.1 || self.ay < 0.1
-    }
 }
 
 /// This is derived from the equations in the Disney BRDF paper:
@@ -310,9 +305,5 @@ impl MicrofacetDistribution for Gtr1Distribution {
     fn pdf(&self, _: &core::Vec, half: &core::Vec) -> f32 {
         // Sampling exactly follows GTR1, so the pdf is the same as the value.
         self.d(half)
-    }
-
-    fn is_delta(&self) -> bool {
-        self.alpha < 0.1
     }
 }

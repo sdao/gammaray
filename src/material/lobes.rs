@@ -28,12 +28,16 @@ bitflags! {
         /// PDF is non-delta-distributed.
         const LOBE_DIFFUSE      = 0b00000001;
         /// PDF is delta-distributed.
+        /// Lobes with this flag must have their f() and pdf() return zero. Only sample_f() should
+        /// return non-zero values; the pdf when sampling should be one.
         const LOBE_SPECULAR     = 0b00000010;
         const LOBE_GLOSSY       = 0b00000100;
         /// Out direction is same hemisphere as in direction.
         const LOBE_REFLECTION   = 0b00001000;
         /// Out and in direction are different hemispheres.
         const LOBE_TRANSMISSION = 0b00010000;
+        /// XXX: Temporary flag used to only connect lobes with low-probability PDFs in BDPT.
+        const LOBE_CONNECTIBLE  = 0b00100000;
     }
 }
 
@@ -66,7 +70,7 @@ pub trait Lobe : Display + Sync + Send {
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_DIFFUSE | LOBE_REFLECTION
+        LOBE_DIFFUSE | LOBE_REFLECTION | LOBE_CONNECTIBLE
     }
 }
 
@@ -124,7 +128,8 @@ impl Display for DisneyDiffuseRefl {
 pub struct StandardMicrofacetRefl<Dist: util::MicrofacetDistribution, Fr: util::Fresnel> {
     microfacet: Dist,
     fresnel: Fr,
-    color: core::Vec
+    color: core::Vec,
+    connectible: bool,
 }
 
 impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
@@ -182,8 +187,8 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
     }
 
     fn kind(&self) -> LobeKind {
-        if self.microfacet.is_delta() {
-            LOBE_SPECULAR | LOBE_REFLECTION
+        if self.connectible {
+            LOBE_GLOSSY | LOBE_REFLECTION | LOBE_CONNECTIBLE
         }
         else {
             LOBE_GLOSSY | LOBE_REFLECTION
@@ -223,7 +228,8 @@ impl DisneySpecularRefl {
         StandardMicrofacetRefl {
             microfacet: util::GgxDistribution::new(roughness, anisotropic),
             fresnel: util::DisneyFresnel::new(ior_adjusted, color, specular_tint, metallic),
-            color: core::Vec::one()
+            color: core::Vec::one(),
+            connectible: roughness * (1.0 - anisotropic) > 0.25,
         }
     }
 }
@@ -240,7 +246,8 @@ impl DisneyClearcoatRefl {
         StandardMicrofacetRefl {
             microfacet: util::Gtr1Distribution::new(clearcoat_gloss),
             fresnel: util::SchlickFresnel {r0: 0.04 * &core::Vec::one()},
-            color: (0.25 * clearcoat) * &core::Vec::one()
+            color: (0.25 * clearcoat) * &core::Vec::one(),
+            connectible: clearcoat_gloss > 0.25,
         }
     }
 }
@@ -251,6 +258,7 @@ pub struct DisneySpecularTrans {
     fresnel: util::DielectricFresnel,
     ior: f32,
     color: core::Vec,
+    connectible: bool,
 }
 
 impl DisneySpecularTrans {
@@ -266,7 +274,8 @@ impl DisneySpecularTrans {
             microfacet: util::GgxDistribution::new(roughness, anisotropic),
             fresnel: util::DielectricFresnel::new(ior_adjusted),
             ior: ior_adjusted,
-            color: color
+            color: color,
+            connectible: roughness * (1.0 - anisotropic) > 0.25,
         }
     }
 }
@@ -391,8 +400,8 @@ impl Lobe for DisneySpecularTrans {
     }
 
     fn kind(&self) -> LobeKind {
-        if self.microfacet.is_delta() {
-            LOBE_SPECULAR | LOBE_TRANSMISSION
+        if self.connectible {
+            LOBE_GLOSSY | LOBE_TRANSMISSION | LOBE_CONNECTIBLE
         }
         else {
             LOBE_GLOSSY | LOBE_TRANSMISSION
