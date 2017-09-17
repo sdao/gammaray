@@ -343,7 +343,7 @@ impl Integrator for BdptIntegrator {
                     surface_props: light_sample.surface_props,
                     throughput: &core::Vec::one() / light_sample.point_pdf,
                     emission: core::Vec::zero(),
-                    lobe_kind: material::LOBE_NONE,
+                    lobe_kind: material::LOBE_CONNECTIBLE,
                     prim_index: light_sample.prim_index,
                 });
                 BdptIntegrator::random_walk(
