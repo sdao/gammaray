@@ -214,6 +214,17 @@ impl Material {
             None => false
         }
     }
+
+    /// Returns the number of lobes in this material whose kind intersects the given kind mask.
+    pub fn count_lobes(&self, mask: lobes::LobeKind) -> usize {
+        let mut count = 0usize;
+        for lobe in &self.lobes {
+            if lobe.kind().intersects(mask) {
+                count += 1;
+            }
+        }
+        return count;
+    }
 }
 
 pub struct DisneyMaterialBuilder {

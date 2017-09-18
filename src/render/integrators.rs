@@ -115,8 +115,10 @@ struct BdptVertex {
     pub throughput: core::Vec,
     // Emission, if the hit occurred on a light.
     pub emission: core::Vec,
-    // Type of lobe that was sampled at the hit point.
+    // Type of lobe that was sampled at the hit point. Not indicative of all lobes in material.
     pub lobe_kind: material::LobeKind,
+    // Whether the vertex can be connected to other vertices, based on its lobe kinds.
+    pub connectible: bool,
     // Prim that was hit.
     pub prim_index: usize,
 }
@@ -147,6 +149,8 @@ impl BdptIntegrator {
                     let prim = &bvh[prim_index];
                     let sample = prim.material().sample_world(
                             &incoming_world, &surface_props, camera_to_light, rng);
+                    let connectible = prim.material().count_lobes(
+                            material::LOBE_DIFFUSE | material::LOBE_GLOSSY) != 0;
 
                     throughput = throughput.comp_mult(
                             &(&sample.radiance *
@@ -164,6 +168,7 @@ impl BdptIntegrator {
                         throughput: prev_throughput,
                         emission: sample.emission,
                         lobe_kind: sample.kind,
+                        connectible: connectible,
                         prim_index: prim_index,
                     });
 
@@ -194,6 +199,7 @@ impl BdptIntegrator {
                         throughput: throughput,
                         emission: core::Vec::zero(),
                         lobe_kind: material::LOBE_NONE,
+                        connectible: false,
                         prim_index: std::usize::MAX,
                     });
                 }
@@ -256,14 +262,11 @@ impl BdptIntegrator {
                 return (core::Vec::zero(), 1.0);
             }
 
-            // Strategy requires connecting camera and light subpaths.
-            // We can't do that for specular camera or light samples, so we must skip in those
-            // cases (and not add weight).
-            // XXX: We're checking LOBE_CONNECTIBLE for now because we want to skip both
-            // specular and some low-pdf glossy lobes (until we have full MIS).
-            if !camera_vertex.lobe_kind.contains(material::LOBE_CONNECTIBLE) ||
-                    !light_vertex.lobe_kind.contains(material::LOBE_CONNECTIBLE) {
-                return (core::Vec::zero(), 0.0);
+            // Specular camera or light vertex means that it's impossible to connect the
+            // two (the pdf and radiance would be 0.0 unless the directions were sampled).
+            // Optimize and early-out so that we don't have to do computations.
+            if !camera_vertex.connectible || !light_vertex.connectible {
+                return (core::Vec::zero(), 1.0);
             }
 
             let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
@@ -343,7 +346,8 @@ impl Integrator for BdptIntegrator {
                     surface_props: light_sample.surface_props,
                     throughput: &core::Vec::one() / light_sample.point_pdf,
                     emission: core::Vec::zero(),
-                    lobe_kind: material::LOBE_CONNECTIBLE,
+                    lobe_kind: material::LOBE_NONE,
+                    connectible: true,
                     prim_index: light_sample.prim_index,
                 });
                 BdptIntegrator::random_walk(
