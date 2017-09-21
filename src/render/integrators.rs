@@ -133,10 +133,9 @@ impl BdptIntegrator {
         initial_ray: &core::Ray, initial_throughput: &core::Vec, camera_to_light: bool,
         bvh: &geom::Bvh, rng: &mut rand::XorShiftRng, storage: &mut BdptPath)
     {
-        let mut depth = 0usize;
         let mut throughput = initial_throughput.clone();
         let mut current_ray = initial_ray.clone();
-        while !throughput.is_exactly_zero() && depth < BDPT_MAX_DEPTH {
+        while !throughput.is_exactly_zero() && storage.len() < BDPT_MAX_DEPTH {
             match bvh.intersect(&current_ray) {
                 geom::Intersection::Hit {dist, surface_props, prim_index} => {
                     let prev_throughput = throughput;
@@ -173,7 +172,7 @@ impl BdptIntegrator {
                     });
 
                     // Do Russian Roulette if this path is "old".
-                    if depth >= BDPT_RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
+                    if storage.len() >= BDPT_RUSSIAN_ROULETTE_DEPTH || throughput.is_nearly_zero() {
                         let rv = rng.next_f32();
                         let prob_live = core::clamped_lerp(0.25, 0.75, throughput.luminance());
 
@@ -204,8 +203,6 @@ impl BdptIntegrator {
                     });
                 }
             }
-
-            depth += 1;
         }
     }
 
@@ -231,14 +228,13 @@ impl BdptIntegrator {
         }
     }
 
-    /// Connects the path according to the given strategy, and returns the radiance collected on
-    /// the path as well as the weight of the path.
+    /// Connects the path according to the given strategy, and returns the unweighted radiance.
     fn connect(&self,
         camera_len: usize,
         light_len: usize,
         camera_storage: &BdptPath,
         light_storage: &BdptPath,
-        bvh: &geom::Bvh) -> (core::Vec, f32)
+        bvh: &geom::Bvh) -> core::Vec
     {
         // We only deal with strategies with at least one camera point.
         debug_assert!(camera_len >= 1);
@@ -246,12 +242,11 @@ impl BdptIntegrator {
 
         if light_len == 0 {
             if camera_vertex.prim_index == std::usize::MAX {
-                return (core::Vec::zero(), 1.0);
+                return core::Vec::zero();
             }
 
             // Camera path only.
-            let contrib = camera_vertex.throughput.comp_mult(&camera_vertex.emission);
-            return (contrib, 1.0);
+            return camera_vertex.throughput.comp_mult(&camera_vertex.emission);
         }
         else {
             // Camera path connects with light path.
@@ -259,14 +254,14 @@ impl BdptIntegrator {
 
             if camera_vertex.prim_index == std::usize::MAX ||
                     light_vertex.prim_index == std::usize::MAX {
-                return (core::Vec::zero(), 1.0);
+                return core::Vec::zero();
             }
 
             // Specular camera or light vertex means that it's impossible to connect the
             // two (the pdf and radiance would be 0.0 unless the directions were sampled).
             // Optimize and early-out so that we don't have to do computations.
             if !camera_vertex.connectible || !light_vertex.connectible {
-                return (core::Vec::zero(), 1.0);
+                return core::Vec::zero();
             }
 
             let camera_to_light = (&light_vertex.point - &camera_vertex.point).normalized();
@@ -301,14 +296,37 @@ impl BdptIntegrator {
             // Delay visibility testing until the very end. Try to avoid visibility testing if the
             // contribution is already black.
             if contrib.is_nearly_zero() {
-                return (contrib, 1.0);
+                return contrib;
             }
             else if bvh.visibility(&camera_vertex.point, &light_vertex.point) {
-                return (contrib, 1.0);
+                return contrib;
             }
             else {
-                return (core::Vec::zero(), 1.0);
+                return core::Vec::zero();
             }
+        }
+    }
+
+    fn weight(&self, camera_len: usize, light_len: usize) -> f32 {
+        let path_len = camera_len + light_len;
+        let max_path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH;
+        if path_len <= BDPT_MAX_DEPTH {
+            // There are path_len ways to make the path in this rendering system:
+            // cam: 1              + light: (path_len - 1)
+            // cam: 2              + light: (path_len - 2)
+            // ...
+            // cam: (path_len - 1) + light: 1
+            // cam: path_len       + light: 0
+            1.0 / path_len as f32
+        } else {
+            // There are max_path_len - path_len + 1 ways to make the path:
+            // path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH:
+            //     only 1 way (cam: BDPT_MAX_DEPTH + light: BDPT_MAX_DEPTH)
+            // path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH - 1:
+            //     two ways: (cam: BDPT_MAX_DEPTH - 1, light: BDPT_MAX_DEPTH)
+            //               (cam: BDPT_MAX_DEPTH,     light: BDPT_MAX_DEPTH - 1)
+            // ...
+            1.0 / (max_path_len - path_len + 1) as f32
         }
     }
 }
@@ -354,35 +372,13 @@ impl Integrator for BdptIntegrator {
                         &light_sample.ray.nudge(), &initial_emission, false, bvh, rng,
                         &mut light_storage);
 
-                for path_len in 1..(camera_storage.len() + light_storage.len() + 1) {
-                    let mut path_light = core::Vec::zero();
-                    let mut path_weight = 0.0; // XXX: do actual MIS instead of even weights.
-
-                    // Determine from camera and light path lengths what connection strategies are
-                    // actually available for paths of this length.
-                    let min_camera = if light_storage.len() < path_len {
-                        path_len - light_storage.len()
-                    }
-                    else {
-                        1
-                    };
-                    let max_camera = std::cmp::min(camera_storage.len(), path_len);
-                    debug_assert!(min_camera >= 1);
-                    debug_assert!(min_camera <= camera_storage.len());
-                    debug_assert!(max_camera >= 1);
-                    debug_assert!(max_camera <= camera_storage.len());
-
-                    // Execute all connection strategies.
-                    for camera_len in min_camera..(max_camera + 1) {
-                        let light_len = path_len - camera_len;
-                        let (l, w) = self.connect(
+                // Execute all connection strategies.
+                for camera_len in 1..(camera_storage.len() + 1) {
+                    for light_len in 0..(light_storage.len() + 1) {
+                        let l = self.connect(
                                 camera_len, light_len, camera_storage, light_storage, bvh);
-                        path_light = &path_light + &l;
-                        path_weight += w;
-                    }
-    
-                    if path_weight > 0.0 {
-                        light = &light + &(&path_light / path_weight);
+                        let w = self.weight(camera_len, light_len);
+                        light = &light + &(&l * w);
                     }
                 }
             });
