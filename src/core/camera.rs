@@ -4,6 +4,7 @@ use core::ray;
 use core::vector;
 use core::xform;
 
+// Based on the "Academy format" for 35mm which gives a 1.375:1 ratio.
 pub const HORIZONTAL_APERTURE_35MM: f32 = 2.2;
 pub const VERTICAL_APERTURE_35MM: f32 = 1.6;
 
@@ -16,8 +17,8 @@ pub struct Camera {
     pub focal_length: f32,
     /**
      * The width of the projector aperture.
-     * This must be in the same units as other scene dimensions, e.g. for a 35mm camera in a
-     * cm-world, you should use 3.5cm (but really 3.6cm because it's actually 36mm...).
+     * This must be in the same units as other scene dimensions, e.g. for 35mm aperture in a
+     * cm-world, you should use 3.5cm, and not 35.
      */
     pub horizontal_aperture: f32,
     /**
