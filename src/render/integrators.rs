@@ -100,7 +100,7 @@ impl Integrator for PathTracerIntegrator {
 }
 
 const BDPT_RUSSIAN_ROULETTE_DEPTH: usize = 4;
-const BDPT_MAX_DEPTH: usize = 8;
+const BDPT_MAX_DEPTH: usize = 16;
 thread_local!(static BDPT_CAMERA_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 thread_local!(static BDPT_LIGHT_STORAGE : RefCell<BdptPath> = RefCell::new(BdptPath::new()));
 
@@ -121,6 +121,12 @@ struct BdptVertex {
     pub connectible: bool,
     // Prim that was hit.
     pub prim_index: usize,
+    // Probability of obtaining this vertex from the previous vertex in the path.
+    pub pdf_forward: f32,
+    // Probability of hypothetically obtaining this vertex from the next vertex in the path, e.g.
+    // the probability if importance (light-to-camera) were sampled instead of radiance
+    // (camera-to-light) or vice versa.
+    pub pdf_reverse: f32,
 }
 
 type BdptPath = std::vec::Vec<BdptVertex>;
@@ -148,6 +154,8 @@ impl BdptIntegrator {
                     let prim = &bvh[prim_index];
                     let sample = prim.material().sample_world(
                             &incoming_world, &surface_props, camera_to_light, rng);
+                    let pdf_reverse = prim.material().pdf_world(
+                            &sample.outgoing, &incoming_world, &surface_props);
                     let connectible = prim.material().count_lobes(
                             material::LOBE_DIFFUSE | material::LOBE_GLOSSY) != 0;
 
@@ -159,6 +167,16 @@ impl BdptIntegrator {
                             &incoming_world, &sample.outgoing, &surface_props, camera_to_light);
                     current_ray = core::Ray::new(current_ray.at(dist), sample.outgoing).nudge();
 
+                    // Set the pdf_reverse of the last vertex (if one exists).
+                    match storage.last_mut() {
+                        Some(x) => {
+                            let convert_density = BdptIntegrator::convert_density(
+                                    &x.point, &hit_point, &surface_props);
+                            x.pdf_reverse = pdf_reverse * convert_density;
+                        },
+                        None => {}
+                    }
+
                     // Add to the random walk path.
                     storage.push(BdptVertex {
                         incoming_world: incoming_world,
@@ -169,6 +187,8 @@ impl BdptIntegrator {
                         lobe_kind: sample.kind,
                         connectible: connectible,
                         prim_index: prim_index,
+                        pdf_forward: sample.pdf,
+                        pdf_reverse: 1.0,
                     });
 
                     // Do Russian Roulette if this path is "old".
@@ -200,6 +220,8 @@ impl BdptIntegrator {
                         lobe_kind: material::LOBE_NONE,
                         connectible: false,
                         prim_index: std::usize::MAX,
+                        pdf_forward: 1.0,
+                        pdf_reverse: 1.0,
                     });
                 }
             }
@@ -225,6 +247,21 @@ impl BdptIntegrator {
             else {
                 num / denom
             }
+        }
+    }
+
+    fn convert_density(
+        prev_pos: &core::Vec,
+        next_pos: &core::Vec,
+        next_surface_props: &geom::SurfaceProperties) -> f32
+    {
+        let dist = (next_pos - prev_pos).magnitude();
+        if dist == 0.0 {
+            0.0
+        }
+        else {
+            let prev_to_next = &(next_pos - prev_pos) / dist;
+            f32::abs(next_surface_props.normal.dot(&prev_to_next)) / (dist * dist)
         }
     }
 
@@ -282,16 +319,14 @@ impl BdptIntegrator {
                         &light_vertex.surface_props, false)
             };
 
-            let dist = (&light_vertex.point - &camera_vertex.point).magnitude();
-            let g = f32::abs(camera_vertex.surface_props.normal.dot(&camera_to_light))
-                    * f32::abs(light_vertex.surface_props.normal.dot(&light_to_camera))
-                    / (dist * dist);
-            debug_assert!(!core::is_nearly_zero(dist), "{} ~ 0.0", dist);
+            let g = f32::abs(camera_vertex.surface_props.normal.dot(&camera_to_light));
+            let convert_density = BdptIntegrator::convert_density(
+                    &camera_vertex.point, &light_vertex.point, &light_vertex.surface_props);
 
             let contrib = &camera_vertex.throughput
                     .comp_mult(&connect_radiance)
                     .comp_mult(&connect_emission)
-                    .comp_mult(&light_vertex.throughput) * g;
+                    .comp_mult(&light_vertex.throughput) * (g * convert_density);
             
             // Delay visibility testing until the very end. Try to avoid visibility testing if the
             // contribution is already black.
@@ -308,26 +343,14 @@ impl BdptIntegrator {
     }
 
     fn weight(&self, camera_len: usize, light_len: usize) -> f32 {
+        // There are path_len ways to make the path in this rendering system:
+        // cam: 1              + light: (path_len - 1)
+        // cam: 2              + light: (path_len - 2)
+        // ...
+        // cam: (path_len - 1) + light: 1
+        // cam: path_len       + light: 0
         let path_len = camera_len + light_len;
-        let max_path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH;
-        if path_len <= BDPT_MAX_DEPTH {
-            // There are path_len ways to make the path in this rendering system:
-            // cam: 1              + light: (path_len - 1)
-            // cam: 2              + light: (path_len - 2)
-            // ...
-            // cam: (path_len - 1) + light: 1
-            // cam: path_len       + light: 0
-            1.0 / path_len as f32
-        } else {
-            // There are max_path_len - path_len + 1 ways to make the path:
-            // path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH:
-            //     only 1 way (cam: BDPT_MAX_DEPTH + light: BDPT_MAX_DEPTH)
-            // path_len = BDPT_MAX_DEPTH + BDPT_MAX_DEPTH - 1:
-            //     two ways: (cam: BDPT_MAX_DEPTH - 1, light: BDPT_MAX_DEPTH)
-            //               (cam: BDPT_MAX_DEPTH,     light: BDPT_MAX_DEPTH - 1)
-            // ...
-            1.0 / (max_path_len - path_len + 1) as f32
-        }
+        1.0 / path_len as f32
     }
 }
 
@@ -367,6 +390,8 @@ impl Integrator for BdptIntegrator {
                     lobe_kind: material::LOBE_NONE,
                     connectible: true,
                     prim_index: light_sample.prim_index,
+                    pdf_forward: light_sample.point_pdf * light_sample.dir_pdf,
+                    pdf_reverse: 1.0,
                 });
                 BdptIntegrator::random_walk(
                         &light_sample.ray.nudge(), &initial_emission, false, bvh, rng,
@@ -375,6 +400,10 @@ impl Integrator for BdptIntegrator {
                 // Execute all connection strategies.
                 for camera_len in 1..(camera_storage.len() + 1) {
                     for light_len in 0..(light_storage.len() + 1) {
+                        if camera_len + light_len > BDPT_MAX_DEPTH {
+                            continue;
+                        }
+
                         let l = self.connect(
                                 camera_len, light_len, camera_storage, light_storage, bvh);
                         let w = self.weight(camera_len, light_len);

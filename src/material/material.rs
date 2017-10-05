@@ -92,6 +92,32 @@ impl Material {
         radiance
     }
 
+    pub fn pdf_world(&self,
+        incoming_world: &core::Vec,
+        outgoing_world: &core::Vec,
+        surface_props: &geom::SurfaceProperties) -> f32
+    {
+        if self.lobes.len() == 0 {
+            return 0.0;
+        }
+
+        // Convert from world-space to local space.
+        let incoming_local = incoming_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        let outgoing_local = outgoing_world.world_to_local(
+                &surface_props.tangent, &surface_props.binormal, &surface_props.normal);
+        if incoming_local.z == 0.0 {
+            return 0.0;
+        }
+
+        let mut pdf = 0.0;
+        for lobe in &self.lobes {
+            pdf += lobe.pdf(&incoming_local, &outgoing_local);
+        }
+
+        return pdf / self.lobes.len() as f32;
+    }
+
     /// Evaluates the attached light, if any, and returns the emission for the given incoming
     /// direction.
     pub fn light_world(&self, incoming_world: &core::Vec, surface_props: &geom::SurfaceProperties)
