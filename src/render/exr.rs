@@ -141,7 +141,7 @@ impl ExrWriter {
         let data_size = film.height * line_size;
 
         self.buffer.resize(self.data_offset + data_size, 0);
-        let mut data = &mut self.buffer[self.data_offset..(self.data_offset + data_size)];
+        let data = &mut self.buffer[self.data_offset..(self.data_offset + data_size)];
 
         data.par_chunks_mut(line_size).enumerate().for_each(|(y, line)| {
             LittleEndian::write_i32(&mut line[0..4], y as i32); // Scan line number.

@@ -68,7 +68,7 @@ pub trait Lobe : Display + Sync + Send {
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_DIFFUSE | LOBE_REFLECTION
+        LobeKind::LOBE_DIFFUSE | LobeKind::LOBE_REFLECTION
     }
 }
 
@@ -184,7 +184,7 @@ impl<Dist, Fr> Lobe for StandardMicrofacetRefl<Dist, Fr>
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_GLOSSY | LOBE_REFLECTION
+        LobeKind::LOBE_GLOSSY | LobeKind::LOBE_REFLECTION
     }
 }
 
@@ -388,7 +388,7 @@ impl Lobe for DisneySpecularTrans {
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_GLOSSY | LOBE_TRANSMISSION
+       LobeKind:: LOBE_GLOSSY | LobeKind::LOBE_TRANSMISSION
     }
 }
 
@@ -452,7 +452,7 @@ impl Lobe for PerfectMirror {
     }
 
     fn kind(&self) -> LobeKind {
-        LOBE_SPECULAR | LOBE_REFLECTION
+        LobeKind::LOBE_SPECULAR | LobeKind::LOBE_REFLECTION
     }
 }
 

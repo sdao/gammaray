@@ -83,8 +83,8 @@ impl Material {
                     outgoing_world.dot(&surface_props.geom_normal)) > 0.0;
         let mut radiance = core::Vec::zero();
         for lobe in &self.lobes {
-            if (reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
-                    (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION)) {
+            if (reflect && lobe.kind().contains(lobes::LobeKind::LOBE_REFLECTION)) ||
+                    (!reflect && lobe.kind().contains(lobes::LobeKind::LOBE_TRANSMISSION)) {
                 radiance = &radiance + &lobe.f(&incoming_local, &outgoing_local, camera_to_light);
             }
         }
@@ -169,7 +169,7 @@ impl Material {
                 radiance: core::Vec::zero(),
                 outgoing: core::Vec::zero(),
                 pdf: 1.0,
-                kind: lobes::LOBE_NONE,
+                kind: lobes::LobeKind::LOBE_NONE,
             };
         }
 
@@ -185,7 +185,7 @@ impl Material {
         let mut pdf = sample.pdf;
 
         // Compute overall PDF over all lobes (if the chosen lobe wasn't specular).
-        if !lobe.kind().contains(lobes::LOBE_SPECULAR) {
+        if !lobe.kind().contains(lobes::LobeKind::LOBE_SPECULAR) {
             for idx in 0..self.lobes.len() {
                 if idx != r {
                     pdf += self.lobes[idx].pdf(&incoming_local, &sample.outgoing);
@@ -195,15 +195,15 @@ impl Material {
         pdf /= self.lobes.len() as f32;
 
         // Compute overall BSDF over all lobes (if the chosen lobe wasn't specular).
-        if !lobe.kind().contains(lobes::LOBE_SPECULAR) {
+        if !lobe.kind().contains(lobes::LobeKind::LOBE_SPECULAR) {
             // Whether we're evalauting BTDFs or BRDFs should actually be based on geom normal,
             // not shading normal.
             let reflect = (incoming_world.dot(&surface_props.geom_normal) *
                     outgoing_world.dot(&surface_props.geom_normal)) > 0.0;
             for idx in 0..self.lobes.len() {
                 if idx != r &&
-                        ((reflect && lobe.kind().contains(lobes::LOBE_REFLECTION)) ||
-                        (!reflect && lobe.kind().contains(lobes::LOBE_TRANSMISSION))) {
+                        ((reflect && lobe.kind().contains(lobes::LobeKind::LOBE_REFLECTION)) ||
+                        (!reflect && lobe.kind().contains(lobes::LobeKind::LOBE_TRANSMISSION))) {
                     radiance = &radiance +
                             &self.lobes[idx].f(&incoming_local, &sample.outgoing, camera_to_light);
                 }
@@ -217,7 +217,7 @@ impl Material {
                 radiance: core::Vec::zero(),
                 outgoing: outgoing_world,
                 pdf: 1.0,
-                kind: lobes::LOBE_NONE,
+                kind: lobes::LobeKind::LOBE_NONE,
             };
         }
 

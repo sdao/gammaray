@@ -136,7 +136,7 @@ impl GgxDistribution {
         let abs_tan_theta = f32::abs(v.tan_theta());
         if abs_tan_theta.is_finite() {
             let alpha = f32::sqrt(
-                    (v.cos2_phi() * (self.ax * self.ax) + v.sin2_phi() * (self.ay * self.ay)));
+                    v.cos2_phi() * (self.ax * self.ax) + v.sin2_phi() * (self.ay * self.ay));
             let alpha2_tan2_theta = (alpha * abs_tan_theta) * (alpha * abs_tan_theta);
             (-1.0 + f32::sqrt(1.0 + alpha2_tan2_theta)) * 0.5
         }
@@ -292,7 +292,7 @@ impl MicrofacetDistribution for Gtr1Distribution {
         let alpha2 = self.alpha * self.alpha;
         let phi = 2.0 * std::f32::consts::PI * rng.next_f32();
         let cos_theta = f32::sqrt(core::clamp_unit(
-                (1.0 - f32::powf(alpha2, 1.0 - rng.next_f32()) / (1.0 - alpha2))));
+                1.0 - f32::powf(alpha2, 1.0 - rng.next_f32()) / (1.0 - alpha2)));
         let h = core::Vec::from_spherical(cos_theta, phi);
         if h.is_local_same_hemisphere(i) {
             h

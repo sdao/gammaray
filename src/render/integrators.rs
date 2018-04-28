@@ -157,7 +157,7 @@ impl BdptIntegrator {
                     let pdf_reverse = prim.material().pdf_world(
                             &sample.outgoing, &incoming_world, &surface_props);
                     let connectible = prim.material().count_lobes(
-                            material::LOBE_DIFFUSE | material::LOBE_GLOSSY) != 0;
+                            material::LobeKind::LOBE_DIFFUSE | material::LobeKind::LOBE_GLOSSY) != 0;
 
                     throughput = throughput.comp_mult(
                             &(&sample.radiance *
@@ -217,7 +217,7 @@ impl BdptIntegrator {
                         surface_props: geom::SurfaceProperties::zero(),
                         throughput: throughput,
                         emission: core::Vec::zero(),
-                        lobe_kind: material::LOBE_NONE,
+                        lobe_kind: material::LobeKind::LOBE_NONE,
                         connectible: false,
                         prim_index: std::usize::MAX,
                         pdf_forward: 1.0,
@@ -387,7 +387,7 @@ impl Integrator for BdptIntegrator {
                     surface_props: light_sample.surface_props,
                     throughput: &core::Vec::one() / light_sample.point_pdf,
                     emission: core::Vec::zero(),
-                    lobe_kind: material::LOBE_NONE,
+                    lobe_kind: material::LobeKind::LOBE_NONE,
                     connectible: true,
                     prim_index: light_sample.prim_index,
                     pdf_forward: light_sample.point_pdf * light_sample.dir_pdf,
